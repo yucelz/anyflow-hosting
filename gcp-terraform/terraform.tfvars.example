@@ -1,0 +1,168 @@
+# N8N GCP Terraform Configuration Example
+# Copy this file to terraform.tfvars and customize for your deployment
+
+# =============================================================================
+# REQUIRED VARIABLES
+# =============================================================================
+
+# Your GCP project ID (REQUIRED)
+project_id = "your-gcp-project-id"
+
+# Domain name for n8n access (REQUIRED)
+# Make sure you can configure DNS for this domain
+domain_name = "n8n.yourdomain.com"
+
+# =============================================================================
+# ENVIRONMENT CONFIGURATION
+# =============================================================================
+
+# Environment name (affects resource naming)
+environment = "dev"  # Options: dev, staging, prod
+
+# =============================================================================
+# REGIONAL CONFIGURATION  
+# =============================================================================
+
+# GCP region and zone
+region = "us-central1"
+zone   = "us-central1-a"
+
+# Alternative regions for better latency:
+# region = "europe-west1"     # Belgium
+# zone   = "europe-west1-b"
+# region = "asia-southeast1"  # Singapore  
+# zone   = "asia-southeast1-a"
+
+# =============================================================================
+# NETWORK CONFIGURATION
+# =============================================================================
+
+network_name  = "n8n-vpc"
+subnet_name   = "n8n-subnet" 
+subnet_cidr   = "10.0.0.0/24"    # Main subnet CIDR
+pods_cidr     = "10.2.0.0/16"    # Kubernetes pods CIDR
+services_cidr = "10.1.0.0/16"    # Kubernetes services CIDR
+
+# =============================================================================
+# GKE CLUSTER CONFIGURATION
+# =============================================================================
+
+cluster_name       = "n8n-cluster"
+kubernetes_version = "latest"        # Use "latest" or specify version like "1.28.3-gke.1286000"
+
+# Node pool configuration
+node_pool_name    = "n8n-node-pool"
+node_count        = 1                # Initial number of nodes
+min_node_count    = 1                # Minimum nodes for autoscaling
+max_node_count    = 3                # Maximum nodes for autoscaling
+
+# Node specifications
+machine_type      = "e2-standard-2"  # Options: e2-medium, e2-standard-2, e2-standard-4, etc.
+disk_size_gb      = 50               # Boot disk size per node
+disk_type         = "pd-standard"    # Options: pd-standard, pd-ssd, pd-balanced
+preemptible_nodes = false            # Set to true for cost savings (not recommended for prod)
+
+# =============================================================================
+# N8N APPLICATION CONFIGURATION  
+# =============================================================================
+
+n8n_namespace        = "n8n"
+n8n_image_tag        = "latest"      # N8N Docker image tag
+n8n_replicas         = 1             # Number of N8N pod replicas
+n8n_basic_auth_user  = "admin"       # Basic auth username
+enable_n8n_metrics   = true          # Enable metrics collection
+
+# Resource limits for N8N pods
+n8n_cpu_request    = "500m"          # CPU request
+n8n_memory_request = "512Mi"         # Memory request  
+n8n_cpu_limit      = "1000m"         # CPU limit
+n8n_memory_limit   = "1024Mi"        # Memory limit
+
+# =============================================================================
+# POSTGRESQL CONFIGURATION
+# =============================================================================
+
+postgres_image_tag      = "13"              # PostgreSQL version
+postgres_storage_size   = "20Gi"            # Database storage size
+postgres_storage_class  = "standard-rwo"    # Storage class
+postgres_cpu_request    = "250m"            # CPU request
+postgres_memory_request = "256Mi"           # Memory request
+postgres_cpu_limit      = "500m"            # CPU limit  
+postgres_memory_limit   = "512Mi"           # Memory limit
+
+# =============================================================================
+# SSL AND NETWORKING
+# =============================================================================
+
+enable_ssl           = true                 # Enable Google-managed SSL certificate
+ssl_certificate_name = "n8n-ssl-cert"       # Name of SSL certificate
+static_ip_name       = "n8n-static-ip"      # Name of static IP
+
+# =============================================================================
+# MONITORING AND FEATURES
+# =============================================================================
+
+enable_monitoring = true                    # Enable monitoring annotations
+
+# =============================================================================
+# SECURITY CONFIGURATION
+# =============================================================================
+
+enable_network_policy    = false            # Enable Kubernetes network policies
+enable_workload_identity = true             # Enable GKE Workload Identity
+
+# Master authorized networks (empty = allow all)
+# Add your IP ranges for additional security
+authorized_networks = [
+  # {
+  #   cidr_block   = "203.0.113.0/24"
+  #   display_name = "Office network"
+  # }
+]
+
+# =============================================================================
+# OPERATIONAL CONFIGURATION
+# =============================================================================
+
+timezone = "UTC"                            # Timezone for N8N
+
+# Backup configuration (future feature)
+enable_backups         = false
+backup_retention_days  = 7
+
+# =============================================================================
+# COST OPTIMIZATION EXAMPLES
+# =============================================================================
+
+# For development/testing (lower costs):
+# machine_type      = "e2-medium"
+# preemptible_nodes = true
+# node_count        = 1
+# max_node_count    = 2
+# postgres_storage_size = "10Gi"
+
+# For production (high availability):  
+# machine_type      = "e2-standard-2"
+# preemptible_nodes = false
+# node_count        = 2
+# min_node_count    = 2
+# max_node_count    = 5
+# n8n_replicas      = 2
+# postgres_storage_size = "50Gi"
+# disk_type         = "pd-ssd"
+
+# =============================================================================
+# REGIONAL EXAMPLES
+# =============================================================================
+
+# US East (cheaper than us-central1):
+# region = "us-east1" 
+# zone   = "us-east1-b"
+
+# Europe:
+# region = "europe-west1"
+# zone   = "europe-west1-b"
+
+# Asia Pacific:  
+# region = "asia-southeast1"
+# zone   = "asia-southeast1-a"

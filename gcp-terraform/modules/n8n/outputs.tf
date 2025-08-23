@@ -28,10 +28,10 @@ output "ssl_certificate_name" {
   value       = var.enable_ssl ? google_compute_managed_ssl_certificate.n8n_ssl_cert[0].name : null
 }
 
-output "ssl_certificate_status" {
-  description = "Status of the SSL certificate"
-  value       = var.enable_ssl ? google_compute_managed_ssl_certificate.n8n_ssl_cert[0].managed[0].status : null
-}
+# output "ssl_certificate_status" {
+#   description = "Status of the SSL certificate"
+#   value       = var.enable_ssl ? google_compute_managed_ssl_certificate.n8n_ssl_cert[0].managed[0].status : null
+# }
 
 output "n8n_deployment_name" {
   description = "Name of the n8n deployment"

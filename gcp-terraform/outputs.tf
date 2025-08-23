@@ -77,10 +77,10 @@ output "ssl_certificate_name" {
   value       = module.n8n.ssl_certificate_name
 }
 
-output "ssl_certificate_status" {
-  description = "Status of the SSL certificate"
-  value       = module.n8n.ssl_certificate_status
-}
+# output "ssl_certificate_status" {
+#   description = "Status of the SSL certificate"
+#   value       = module.n8n.ssl_certificate_status
+# }
 
 # Kubectl Configuration
 output "kubectl_config_command" {

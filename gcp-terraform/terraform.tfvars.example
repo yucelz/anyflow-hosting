@@ -25,7 +25,7 @@ environment = "dev"  # Options: dev, staging, prod
 
 # GCP region and zone
 region = "us-central1"
-zone   = "us-central1-a"
+zone   = "europe-north2-a"
 
 # Alternative regions for better latency:
 # region = "europe-west1"     # Belgium

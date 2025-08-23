@@ -28,7 +28,7 @@ variable "region" {
 variable "zone" {
   description = "The GCP zone"
   type        = string
-  default     = "europe-north2-a"
+  default     = "us-central1-a"
 }
 
 # Network Configuration

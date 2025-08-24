@@ -30,10 +30,10 @@ resource "google_service_account" "workload_identity_service_account" {
   description  = "Service account for Workload Identity in ${var.cluster_name} cluster"
 }
 
-# Create GKE cluster
+# Create GKE cluster (Regional for high availability)
 resource "google_container_cluster" "primary" {
   name     = var.cluster_name
-  location = var.zone
+  location = var.region  # Changed from var.zone to var.region for regional cluster
 
   network    = var.network_name
   subnetwork = var.subnet_name
@@ -44,6 +44,13 @@ resource "google_container_cluster" "primary" {
 
   # Kubernetes version
   min_master_version = var.kubernetes_version == "latest" ? null : var.kubernetes_version
+
+  # For regional clusters, specify node locations (zones within the region)
+  node_locations = var.node_locations != null ? var.node_locations : [
+    "${var.region}-a",
+    "${var.region}-b",
+    "${var.region}-c"
+  ]
 
   # Network configuration
   ip_allocation_policy {
@@ -149,7 +156,7 @@ resource "google_container_cluster" "primary" {
 # Create node pool
 resource "google_container_node_pool" "primary_nodes" {
   name       = var.node_pool_name
-  location   = var.zone
+  location   = var.region  # Changed from var.zone to var.region to match cluster location
   cluster    = google_container_cluster.primary.name
   
   # Auto-scaling configuration

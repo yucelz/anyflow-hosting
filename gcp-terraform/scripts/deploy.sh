@@ -174,30 +174,60 @@ apply_infrastructure() {
         print_info "Waiting for cluster to be ready and getting credentials..."
         sleep 30
         
-        # Get cluster credentials
-        local cluster_name=$(terraform output -raw cluster_name 2>/dev/null || echo "")
-        local project_id=$(terraform output -raw project_id 2>/dev/null || echo "")
-        local region=$(terraform output -raw region 2>/dev/null || echo "")
-        
-        if [[ -n "$cluster_name" && -n "$project_id" && -n "$region" ]]; then
-            gcloud container clusters get-credentials "$cluster_name" --region="$region" --project="$project_id"
-            
-            # Test cluster connectivity
-            print_info "Testing cluster connectivity..."
-            kubectl cluster-info --request-timeout=30s
-            
-            if [[ $? -eq 0 ]]; then
-                print_success "Cluster is ready for application deployment!"
-                print_info "You can now run: $0 $ENVIRONMENT plan-apps"
-            else
-                print_warning "Cluster connectivity test failed, but infrastructure is deployed."
-            fi
-        else
-            print_warning "Could not get cluster information from Terraform outputs"
-        fi
+        # Get cluster credentials with improved logic
+        get_cluster_credentials_after_deployment
     else
         print_error "Infrastructure deployment failed"
         exit 1
+    fi
+}
+
+# Enhanced function to get cluster credentials after deployment
+get_cluster_credentials_after_deployment() {
+    local cluster_name=$(terraform output -raw cluster_name 2>/dev/null || echo "")
+    local project_id=$(terraform output -raw project_id 2>/dev/null || echo "")
+    local region=$(terraform output -raw region 2>/dev/null || echo "")
+    local zone=$(terraform output -raw zone 2>/dev/null || echo "")
+    
+    if [[ -n "$cluster_name" && -n "$project_id" ]]; then
+        print_info "Attempting to get cluster credentials..."
+        
+        # Try regional cluster first (preferred)
+        if [[ -n "$region" ]]; then
+            if gcloud container clusters get-credentials "$cluster_name" --region="$region" --project="$project_id" 2>/dev/null; then
+                print_success "Successfully connected to regional cluster: $cluster_name in $region"
+            elif [[ -n "$zone" ]]; then
+                # Fallback to zonal cluster using the zone from Terraform output
+                print_info "Regional cluster not found, trying zonal cluster in zone: $zone"
+                if gcloud container clusters get-credentials "$cluster_name" --zone="$zone" --project="$project_id" 2>/dev/null; then
+                    print_success "Successfully connected to zonal cluster: $cluster_name in $zone"
+                else
+                    # Try common zones in the region
+                    print_info "Trying common zones in region $region..."
+                    for zone_suffix in "a" "b" "c"; do
+                        local test_zone="${region}-${zone_suffix}"
+                        print_info "Trying zone: $test_zone"
+                        if gcloud container clusters get-credentials "$cluster_name" --zone="$test_zone" --project="$project_id" 2>/dev/null; then
+                            print_success "Successfully connected to cluster in zone: $test_zone"
+                            break
+                        fi
+                    done
+                fi
+            fi
+        fi
+        
+        # Test cluster connectivity
+        print_info "Testing cluster connectivity..."
+        if kubectl cluster-info --request-timeout=30s >/dev/null 2>&1; then
+            print_success "Cluster is ready for application deployment!"
+            print_info "You can now run: $0 $ENVIRONMENT plan-apps"
+        else
+            print_warning "Cluster connectivity test failed, but infrastructure is deployed."
+            print_info "The cluster might still be initializing. Try again in a few minutes."
+        fi
+    else
+        print_warning "Could not get cluster information from Terraform outputs"
+        print_info "You may need to manually run: gcloud container clusters get-credentials CLUSTER_NAME --region=REGION --project=PROJECT_ID"
     fi
 }
 
@@ -272,7 +302,7 @@ apply_applications() {
     fi
 }
 
-# Setup cluster credentials
+# Enhanced setup cluster credentials with fallback support
 setup_cluster_credentials() {
     print_info "Setting up cluster credentials..."
     
@@ -280,15 +310,60 @@ setup_cluster_credentials() {
     local cluster_name=$(terraform output -raw cluster_name 2>/dev/null || echo "")
     local project_id=$(terraform output -raw project_id 2>/dev/null || echo "")
     local region=$(terraform output -raw region 2>/dev/null || echo "")
+    local zone=$(terraform output -raw zone 2>/dev/null || echo "")
     
-    if [[ -n "$cluster_name" && -n "$project_id" && -n "$region" ]]; then
-        gcloud container clusters get-credentials "$cluster_name" --region="$region" --project="$project_id"
+    if [[ -n "$cluster_name" && -n "$project_id" ]]; then
+        local connected=false
         
-        # Test connectivity
-        if ! kubectl cluster-info --request-timeout=10s >/dev/null 2>&1; then
-            print_warning "Cluster connectivity test failed. Cluster might still be initializing."
-            print_info "Waiting 60 seconds for cluster to be ready..."
-            sleep 60
+        # Try regional cluster first
+        if [[ -n "$region" ]]; then
+            print_info "Trying to connect to regional cluster: $cluster_name in $region"
+            if gcloud container clusters get-credentials "$cluster_name" --region="$region" --project="$project_id" 2>/dev/null; then
+                print_success "Connected to regional cluster"
+                connected=true
+            else
+                print_info "Regional cluster connection failed, trying zonal clusters..."
+                
+                # Try zone from terraform output first
+                if [[ -n "$zone" ]]; then
+                    print_info "Trying zone from Terraform output: $zone"
+                    if gcloud container clusters get-credentials "$cluster_name" --zone="$zone" --project="$project_id" 2>/dev/null; then
+                        print_success "Connected to zonal cluster in $zone"
+                        connected=true
+                    fi
+                fi
+                
+                # Try common zones in the region if not connected yet
+                if [[ "$connected" == false ]]; then
+                    for zone_suffix in "a" "b" "c"; do
+                        local test_zone="${region}-${zone_suffix}"
+                        print_info "Trying zone: $test_zone"
+                        if gcloud container clusters get-credentials "$cluster_name" --zone="$test_zone" --project="$project_id" 2>/dev/null; then
+                            print_success "Connected to zonal cluster in $test_zone"
+                            connected=true
+                            break
+                        fi
+                    done
+                fi
+            fi
+        fi
+        
+        if [[ "$connected" == true ]]; then
+            # Test connectivity
+            if ! kubectl cluster-info --request-timeout=10s >/dev/null 2>&1; then
+                print_warning "Cluster connectivity test failed. Cluster might still be initializing."
+                print_info "Waiting 60 seconds for cluster to be ready..."
+                sleep 60
+                
+                # Test again
+                if ! kubectl cluster-info --request-timeout=30s >/dev/null 2>&1; then
+                    print_warning "Cluster still not responding. Proceeding anyway..."
+                fi
+            fi
+        else
+            print_error "Could not connect to cluster. Make sure infrastructure is deployed first."
+            print_info "Run: $0 $ENVIRONMENT apply-infra"
+            exit 1
         fi
     else
         print_error "Could not get cluster information. Make sure infrastructure is deployed first."

@@ -149,6 +149,9 @@ resource "google_container_cluster" "primary" {
   # Resource labels
   resource_labels = var.labels
 
+  # Deletion protection
+  deletion_protection = var.deletion_protection
+
   lifecycle {
     ignore_changes = [
       node_config,

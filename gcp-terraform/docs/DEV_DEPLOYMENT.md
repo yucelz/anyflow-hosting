@@ -59,11 +59,49 @@ The dev deployment is a cost-optimized, minimal resource configuration that prov
 
 ### Quick Deployment
 
-Use the dedicated dev deployment script:
+Use the dedicated dev deployment script with comprehensive validation and deletion protection handling:
 
 ```bash
+# Deploy the development environment
 ./scripts/dev-deploy.sh
+
+# Destroy the development environment
+./scripts/dev-deploy.sh --destroy
+
+# Show help and usage information
+./scripts/dev-deploy.sh --help
 ```
+
+#### Script Features
+
+The `dev-deploy.sh` script provides:
+
+- **Comprehensive Pre-deployment Validation**
+  - GCP authentication and project access verification
+  - Required API enablement
+  - Terraform configuration validation
+  - Network, GKE, and N8N prerequisite checks
+
+- **Staged Deployment Process**
+  - Stage 1: Infrastructure (Network + GKE cluster)
+  - Stage 2: Application (N8N + PostgreSQL)
+  - Post-deployment validation for each stage
+
+- **Automatic Deletion Protection Handling**
+  - Detects GKE deletion protection settings
+  - Automatically disables protection when destroying clusters
+  - Provides manual instructions if automatic handling fails
+
+- **Safe Destruction Process**
+  - Stage 1: Destroy N8N application
+  - Stage 2: Destroy GKE cluster (with protection handling)
+  - Stage 3: Destroy network infrastructure
+  - Stage 4: Clean up remaining resources
+
+- **Enhanced Error Handling**
+  - Clear error messages with actionable instructions
+  - Graceful fallback to manual intervention
+  - Comprehensive logging of all operations
 
 ### Manual Deployment
 
@@ -200,28 +238,61 @@ If you need to scale beyond dev limits:
 
 ### Common Issues
 
-1. **Pod Stuck in Pending**
+1. **GKE Deletion Protection Error**
+   ```
+   Error: Cannot destroy cluster because deletion_protection is set to true.
+   ```
+   
+   **Solution**: The `dev-deploy.sh --destroy` script automatically handles this by:
+   - Detecting deletion protection status
+   - Disabling protection using gcloud CLI
+   - Retrying the terraform destroy operation
+   
+   **Manual Fix** (if automatic handling fails):
+   ```bash
+   # Disable deletion protection
+   gcloud container clusters update dev-n8n-cluster \
+     --zone=us-central1-a \
+     --project=anyflow-469911 \
+     --no-deletion-protection
+   
+   # Then retry destroy
+   terraform destroy -target=module.gke \
+     -var-file=environments/dev/terraform.tfvars \
+     -auto-approve
+   ```
+
+2. **Pod Stuck in Pending**
    ```bash
    kubectl describe pod -n n8n <pod-name>
    # Check for resource constraints or node availability
    ```
 
-2. **Out of Memory Errors**
+3. **Out of Memory Errors**
    ```bash
    kubectl logs -n n8n deployment/n8n-deployment --previous
    # Consider increasing memory limits
    ```
 
-3. **Database Connection Issues**
+4. **Database Connection Issues**
    ```bash
    kubectl exec -n n8n deployment/n8n-deployment -- nc -zv n8n-postgres 5432
    # Test database connectivity
    ```
 
-4. **SSL Certificate Issues**
+5. **SSL Certificate Issues**
    ```bash
    kubectl describe managedcertificate -n n8n
    # Check certificate provisioning status
+   ```
+
+6. **Terraform State Issues**
+   ```bash
+   # If terraform state becomes corrupted
+   terraform refresh -var-file=environments/dev/terraform.tfvars
+   
+   # If resources exist but not in state
+   terraform import <resource_type>.<resource_name> <resource_id>
    ```
 
 ### Recovery Procedures

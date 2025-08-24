@@ -2,8 +2,48 @@
 
 # Deploy Dev Environment with Comprehensive Validation
 # Enhanced validation checks for GKE, Network, and N8N components
+# Usage: ./dev-deploy.sh [--destroy] [--help]
 
 set -e
+
+# Parse command line arguments
+DESTROY_MODE=false
+SHOW_HELP=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --destroy)
+            DESTROY_MODE=true
+            shift
+            ;;
+        --help|-h)
+            SHOW_HELP=true
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+# Show help if requested
+if [ "$SHOW_HELP" = true ]; then
+    echo "Usage: $0 [OPTIONS]"
+    echo ""
+    echo "Deploy or destroy the N8N development environment"
+    echo ""
+    echo "OPTIONS:"
+    echo "  --destroy    Destroy the existing environment instead of deploying"
+    echo "  --help, -h   Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  $0                Deploy the development environment"
+    echo "  $0 --destroy      Destroy the development environment"
+    echo ""
+    exit 0
+fi
 
 # Colors for output
 RED='\033[0;31m'
@@ -28,10 +68,17 @@ SUBNET_NAME="${ENVIRONMENT}-n8n-cluster-n8n-subnet"
 VALIDATION_PASSED=true
 VALIDATION_ERRORS=()
 
-echo -e "${BLUE}========================================${NC}"
-echo -e "${BLUE}    N8N Dev Environment Deployment     ${NC}"
-echo -e "${BLUE}  With Comprehensive Validation Checks ${NC}"
-echo -e "${BLUE}========================================${NC}"
+if [ "$DESTROY_MODE" = true ]; then
+    echo -e "${RED}========================================${NC}"
+    echo -e "${RED}    N8N Dev Environment Destruction    ${NC}"
+    echo -e "${RED}  With Deletion Protection Handling   ${NC}"
+    echo -e "${RED}========================================${NC}"
+else
+    echo -e "${BLUE}========================================${NC}"
+    echo -e "${BLUE}    N8N Dev Environment Deployment     ${NC}"
+    echo -e "${BLUE}  With Comprehensive Validation Checks ${NC}"
+    echo -e "${BLUE}========================================${NC}"
+fi
 
 # Function to print status
 print_status() {
@@ -63,6 +110,75 @@ add_validation_error() {
     VALIDATION_ERRORS+=("$1")
     VALIDATION_PASSED=false
     print_error "VALIDATION FAILED: $1"
+}
+
+# Function to handle cluster deletion protection
+handle_cluster_deletion_protection() {
+    local cluster_name=$1
+    local zone_or_region=$2
+    local location_flag=$3
+    
+    print_warning "Cluster deletion protection is enabled. Attempting to disable it..."
+    
+    # Try to update the cluster to disable deletion protection
+    if gcloud container clusters update "$cluster_name" \
+        --$location_flag="$zone_or_region" \
+        --project="$PROJECT_ID" \
+        --no-deletion-protection \
+        --quiet; then
+        print_success "Deletion protection disabled for cluster $cluster_name"
+        return 0
+    else
+        print_error "Failed to disable deletion protection for cluster $cluster_name"
+        print_error "You may need to disable it manually using:"
+        print_error "gcloud container clusters update $cluster_name --$location_flag=$zone_or_region --project=$PROJECT_ID --no-deletion-protection"
+        return 1
+    fi
+}
+
+# Function to safely destroy cluster
+destroy_cluster_safely() {
+    local cluster_name=$1
+    local zone_or_region=$2
+    local location_flag=$3
+    
+    print_status "Attempting to destroy cluster $cluster_name..."
+    
+    # First try normal terraform destroy
+    if terraform destroy -target="module.gke" \
+        -var-file="environments/$ENVIRONMENT/terraform.tfvars" \
+        -auto-approve; then
+        print_success "Cluster destroyed successfully"
+        return 0
+    else
+        print_warning "Cluster destruction failed, likely due to deletion protection"
+        
+        # Check if cluster still exists and has deletion protection
+        if gcloud container clusters describe "$cluster_name" \
+            --$location_flag="$zone_or_region" \
+            --project="$PROJECT_ID" \
+            --format="value(deletionProtection)" 2>/dev/null | grep -q "true"; then
+            
+            print_status "Cluster has deletion protection enabled. Disabling it..."
+            if handle_cluster_deletion_protection "$cluster_name" "$zone_or_region" "$location_flag"; then
+                print_status "Retrying cluster destruction..."
+                if terraform destroy -target="module.gke" \
+                    -var-file="environments/$ENVIRONMENT/terraform.tfvars" \
+                    -auto-approve; then
+                    print_success "Cluster destroyed successfully after disabling deletion protection"
+                    return 0
+                else
+                    print_error "Cluster destruction still failed after disabling deletion protection"
+                    return 1
+                fi
+            else
+                return 1
+            fi
+        else
+            print_error "Cluster destruction failed for unknown reasons"
+            return 1
+        fi
+    fi
 }
 
 # Function to validate command exists
@@ -487,6 +603,82 @@ if terraform workspace list | grep -q "$ENVIRONMENT"; then
     terraform workspace select "$ENVIRONMENT"
 else
     terraform workspace new "$ENVIRONMENT"
+fi
+
+# Handle destroy mode
+if [ "$DESTROY_MODE" = true ]; then
+    print_section "ENVIRONMENT DESTRUCTION"
+    
+    # Ask for confirmation
+    echo -e "${RED}WARNING: This will destroy the entire $ENVIRONMENT environment!${NC}"
+    echo -e "${RED}This includes:${NC}"
+    echo -e "${RED}  • N8N application and data${NC}"
+    echo -e "${RED}  • PostgreSQL database and data${NC}"
+    echo -e "${RED}  • GKE cluster and nodes${NC}"
+    echo -e "${RED}  • VPC network and subnets${NC}"
+    echo -e "${RED}  • SSL certificates and static IPs${NC}"
+    echo ""
+    read -p "Are you sure you want to destroy the $ENVIRONMENT environment? (y/N): " -n 1 -r
+    echo ""
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        print_warning "Destruction cancelled by user"
+        exit 0
+    fi
+    
+    # Stage 1: Destroy N8N application first
+    print_section "STAGE 1: DESTROYING APPLICATION"
+    print_status "Destroying N8N application..."
+    
+    if terraform destroy -target="module.n8n" \
+        -var-file="environments/$ENVIRONMENT/terraform.tfvars" \
+        -auto-approve; then
+        print_success "N8N application destroyed successfully"
+    else
+        print_warning "N8N application destruction failed, continuing with infrastructure..."
+    fi
+    
+    # Stage 2: Destroy GKE cluster (with deletion protection handling)
+    print_section "STAGE 2: DESTROYING GKE CLUSTER"
+    
+    if destroy_cluster_safely "$CLUSTER_NAME" "$ZONE" "zone"; then
+        print_success "GKE cluster destroyed successfully"
+    else
+        print_error "Failed to destroy GKE cluster. Manual intervention may be required."
+        print_error "Try running: gcloud container clusters update $CLUSTER_NAME --zone=$ZONE --project=$PROJECT_ID --no-deletion-protection"
+        print_error "Then run: terraform destroy -target=module.gke -var-file=environments/$ENVIRONMENT/terraform.tfvars -auto-approve"
+        exit 1
+    fi
+    
+    # Stage 3: Destroy network infrastructure
+    print_section "STAGE 3: DESTROYING NETWORK"
+    print_status "Destroying network infrastructure..."
+    
+    if terraform destroy -target="module.network" \
+        -var-file="environments/$ENVIRONMENT/terraform.tfvars" \
+        -auto-approve; then
+        print_success "Network infrastructure destroyed successfully"
+    else
+        print_warning "Network destruction failed, some resources may remain"
+    fi
+    
+    # Stage 4: Clean up remaining resources
+    print_section "STAGE 4: CLEANUP"
+    print_status "Cleaning up remaining resources..."
+    
+    # Destroy any remaining terraform resources
+    if terraform destroy \
+        -var-file="environments/$ENVIRONMENT/terraform.tfvars" \
+        -auto-approve; then
+        print_success "All terraform resources destroyed"
+    else
+        print_warning "Some terraform resources may remain"
+    fi
+    
+    print_section "DESTRUCTION COMPLETE"
+    print_success "Environment $ENVIRONMENT has been destroyed!"
+    print_status "Note: Some GCP resources may take a few minutes to fully disappear from the console"
+    
+    exit 0
 fi
 
 # STAGE 1: Deploy Infrastructure (Network + GKE)

@@ -135,6 +135,12 @@ variable "preemptible_nodes" {
   default     = false
 }
 
+variable "deletion_protection" {
+  description = "Whether to enable deletion protection for the GKE cluster"
+  type        = bool
+  default     = true
+}
+
 # N8N Configuration
 variable "domain_name" {
   description = "Domain name for n8n (e.g., n8n.example.com)"

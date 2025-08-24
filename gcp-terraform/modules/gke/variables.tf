@@ -137,3 +137,9 @@ variable "labels" {
   type        = map(string)
   default     = {}
 }
+
+variable "deletion_protection" {
+  description = "Whether to enable deletion protection for the GKE cluster"
+  type        = bool
+  default     = true
+}

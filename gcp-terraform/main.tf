@@ -90,6 +90,9 @@ module "gke" {
   workload_identity_ksa_name = "n8n-ksa"
   authorized_networks        = var.authorized_networks
   
+  # Deletion protection
+  deletion_protection        = var.deletion_protection
+  
   labels = local.common_labels
 
   depends_on = [module.network]

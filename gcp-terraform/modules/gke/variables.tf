@@ -126,6 +126,12 @@ variable "authorized_networks" {
   default = []
 }
 
+variable "node_locations" {
+  description = "List of zones for regional cluster nodes"
+  type        = list(string)
+  default     = null
+}
+
 variable "labels" {
   description = "Labels to apply to resources"
   type        = map(string)

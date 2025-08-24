@@ -1,0 +1,305 @@
+# Dev Environment Deployment - Minimized N8N Infrastructure
+
+This document describes the dev environment deployment configuration for N8N, designed for minimal resource usage with maximum 2 Kubernetes nodes and single resource instances for each product.
+
+## Overview
+
+The dev deployment is a cost-optimized, minimal resource configuration that provides:
+- **Maximum 2 Kubernetes nodes** (e2-micro instances)
+- **Single N8N replica** (no horizontal scaling)
+- **Single PostgreSQL instance** (no replication)
+- **Minimal resource allocation** (CPU and memory)
+- **Disabled monitoring and advanced features** to save resources
+
+## Architecture
+
+### Infrastructure Components
+
+| Component | Configuration | Resource Allocation |
+|-----------|---------------|-------------------|
+| **GKE Cluster** | Zonal (single zone) | us-central1-a |
+| **Node Pool** | 1-2 nodes max | e2-micro (1 vCPU, 1GB RAM) |
+| **N8N Application** | Single replica | 100m CPU, 128Mi RAM |
+| **PostgreSQL** | Single instance | 50m CPU, 64Mi RAM |
+| **Storage** | Minimal | 5Gi persistent disk |
+| **Networking** | Basic | No network policies |
+
+### Key Differences from Production Environment
+
+| Feature | Production Environment | Dev Environment |
+|---------|----------------------|-----------------|
+| Cluster Type | Regional (3 zones) | Zonal (1 zone) |
+| Max Nodes | 5+ | 2 |
+| Machine Type | e2-standard-2 | e2-micro |
+| N8N CPU | 500m request, 1000m limit | 100m request, 200m limit |
+| N8N Memory | 512Mi request, 1Gi limit | 128Mi request, 256Mi limit |
+| PostgreSQL CPU | 250m request, 500m limit | 50m request, 100m limit |
+| PostgreSQL Memory | 256Mi request, 512Mi limit | 64Mi request, 128Mi limit |
+| Storage | 50Gi+ | 5Gi |
+| Monitoring | Enabled | Disabled |
+| Workload Identity | Enabled | Disabled |
+| Autoscaling | Enabled | Disabled |
+| Pod Disruption Budget | Enabled | Disabled |
+
+## Deployment
+
+### Prerequisites
+
+1. **GCP Project Setup**
+   ```bash
+   gcloud auth login
+   gcloud config set project anyflow-469911
+   ```
+
+2. **Required APIs** (automatically enabled by script)
+   - Container API (container.googleapis.com)
+   - Compute Engine API (compute.googleapis.com)
+   - Certificate Manager API (certificatemanager.googleapis.com)
+   - IAM API (iam.googleapis.com)
+
+### Quick Deployment
+
+Use the dedicated dev deployment script:
+
+```bash
+./scripts/dev-deploy.sh
+```
+
+### Manual Deployment
+
+1. **Initialize Terraform**
+   ```bash
+   cd gcp-terraform
+   terraform init
+   ```
+
+2. **Create/Select Workspace**
+   ```bash
+   terraform workspace new dev
+   # or
+   terraform workspace select dev
+   ```
+
+3. **Plan Deployment**
+   ```bash
+   terraform plan -var-file="environments/dev/terraform.tfvars" -out="terraform-dev.tfplan"
+   ```
+
+4. **Apply Configuration**
+   ```bash
+   terraform apply "terraform-dev.tfplan"
+   ```
+
+5. **Get Cluster Credentials**
+   ```bash
+   gcloud container clusters get-credentials dev-n8n-cluster --region=us-central1 --project=anyflow-469911
+   ```
+
+## Resource Limits and Constraints
+
+### Kubernetes Cluster
+- **Type**: Zonal cluster (single zone for cost optimization)
+- **Location**: us-central1-a
+- **Node Pool**: 1-2 nodes maximum
+- **Machine Type**: e2-micro (1 vCPU, 1GB RAM, preemptible)
+- **Disk**: 20GB standard persistent disk per node
+
+### Application Resources
+- **N8N Pod**: 1 replica only
+  - CPU Request: 100m (0.1 CPU core)
+  - CPU Limit: 200m (0.2 CPU core)
+  - Memory Request: 128Mi
+  - Memory Limit: 256Mi
+
+- **PostgreSQL Pod**: 1 instance only
+  - CPU Request: 50m (0.05 CPU core)
+  - CPU Limit: 100m (0.1 CPU core)
+  - Memory Request: 64Mi
+  - Memory Limit: 128Mi
+  - Storage: 5Gi persistent volume
+
+### Total Resource Usage
+- **CPU**: ~150m total request (~0.15 CPU core)
+- **Memory**: ~192Mi total request
+- **Storage**: 5Gi for database + 20Gi per node for OS
+- **Network**: Basic VPC with single subnet
+
+## Limitations
+
+### Scalability
+- **No Horizontal Pod Autoscaling**: N8N runs as single replica
+- **No Pod Disruption Budget**: Single pod means no disruption protection
+- **No Multi-Zone Redundancy**: Single zone deployment
+
+### Features Disabled
+- **Monitoring**: Prometheus metrics disabled
+- **Workload Identity**: GCP service account integration disabled
+- **Network Policies**: Kubernetes network policies disabled
+- **Cluster Autoscaling**: Disabled to enforce strict node limits
+
+### Performance Considerations
+- **Limited CPU**: May impact workflow execution performance
+- **Limited Memory**: May cause OOM issues with complex workflows
+- **Single Database**: No database replication or backup automation
+- **Network Latency**: Single zone may have higher latency for some regions
+
+## Monitoring and Maintenance
+
+### Health Checks
+Even with monitoring disabled, basic health checks are still active:
+- **N8N Liveness Probe**: HTTP GET /healthz every 30s
+- **N8N Readiness Probe**: HTTP GET /healthz every 5s
+- **PostgreSQL Liveness Probe**: pg_isready every 10s
+- **PostgreSQL Readiness Probe**: pg_isready every 5s
+
+### Manual Monitoring Commands
+```bash
+# Check cluster status
+kubectl cluster-info
+
+# Check node status
+kubectl get nodes -o wide
+
+# Check pod status
+kubectl get pods -n n8n
+
+# Check resource usage
+kubectl top nodes
+kubectl top pods -n n8n
+
+# Check logs
+kubectl logs -n n8n deployment/n8n-deployment
+kubectl logs -n n8n statefulset/n8n-postgres
+```
+
+### Scaling Considerations
+If you need to scale beyond dev limits:
+1. **Increase Node Count**: Modify `max_node_count` in terraform.tfvars
+2. **Upgrade Machine Type**: Change from e2-micro to e2-small or e2-medium
+3. **Enable Autoscaling**: Set `enable_autoscaling = true` and increase `n8n_replicas`
+4. **Add Monitoring**: Set `enable_monitoring = true`
+
+## Cost Optimization
+
+### Estimated Monthly Costs (US Central1)
+- **GKE Cluster**: ~$73/month (cluster management fee)
+- **Compute Instances**: ~$10-20/month (2 x e2-micro preemptible)
+- **Storage**: ~$1/month (5Gi standard disk)
+- **Networking**: ~$1-5/month (ingress/egress)
+- **Load Balancer**: ~$18/month (GCP Load Balancer)
+
+**Total Estimated**: ~$103-117/month
+
+### Cost Reduction Tips
+1. **Use Preemptible Nodes**: Already enabled (up to 80% savings)
+2. **Minimize Storage**: 5Gi is already minimal
+3. **Regional Considerations**: us-central1 is typically cheapest
+4. **Cleanup Unused Resources**: Regular cleanup of old deployments
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Pod Stuck in Pending**
+   ```bash
+   kubectl describe pod -n n8n <pod-name>
+   # Check for resource constraints or node availability
+   ```
+
+2. **Out of Memory Errors**
+   ```bash
+   kubectl logs -n n8n deployment/n8n-deployment --previous
+   # Consider increasing memory limits
+   ```
+
+3. **Database Connection Issues**
+   ```bash
+   kubectl exec -n n8n deployment/n8n-deployment -- nc -zv n8n-postgres 5432
+   # Test database connectivity
+   ```
+
+4. **SSL Certificate Issues**
+   ```bash
+   kubectl describe managedcertificate -n n8n
+   # Check certificate provisioning status
+   ```
+
+### Recovery Procedures
+
+1. **Restart N8N Pod**
+   ```bash
+   kubectl rollout restart deployment/n8n-deployment -n n8n
+   ```
+
+2. **Restart PostgreSQL**
+   ```bash
+   kubectl rollout restart statefulset/n8n-postgres -n n8n
+   ```
+
+3. **Scale Node Pool**
+   ```bash
+   gcloud container clusters resize dev-n8n-cluster --num-nodes=2 --region=us-central1
+   ```
+
+## Security Considerations
+
+### Simplified Security Model
+- **No Network Policies**: All pods can communicate freely
+- **No Workload Identity**: Uses default node service account
+- **Basic Authentication**: N8N protected by basic auth only
+- **HTTPS Only**: SSL certificate enforced via ingress
+
+### Security Recommendations
+1. **Restrict Access**: Use GCP IAM to limit cluster access
+2. **Monitor Logs**: Regularly check application and audit logs
+3. **Update Images**: Keep N8N and PostgreSQL images updated
+4. **Backup Data**: Implement regular database backups
+5. **Network Segmentation**: Consider enabling network policies if needed
+
+## Backup and Recovery
+
+### Database Backup
+```bash
+# Manual backup
+kubectl exec -n n8n statefulset/n8n-postgres -- pg_dump -U n8n n8n > backup.sql
+
+# Restore from backup
+kubectl exec -i -n n8n statefulset/n8n-postgres -- psql -U n8n n8n < backup.sql
+```
+
+### Configuration Backup
+```bash
+# Export all Kubernetes resources
+kubectl get all,secrets,configmaps,pvc -n n8n -o yaml > n8n-backup.yaml
+```
+
+## Upgrade Path
+
+To upgrade from dev to a production environment:
+
+1. **Create Production Environment**
+   ```bash
+   cp -r environments/dev environments/production
+   # Modify production configuration for higher resources
+   ```
+
+2. **Migrate Data**
+   - Export database from dev
+   - Import to production environment
+   - Update DNS to point to production environment
+
+3. **Decommission Dev**
+   ```bash
+   terraform destroy -var-file="environments/dev/terraform.tfvars"
+   ```
+
+## Support
+
+For issues specific to the dev deployment:
+1. Check this documentation first
+2. Review Terraform validation: `terraform validate`
+3. Check GCP quotas and limits
+4. Verify cluster and pod status
+5. Review application logs
+
+Remember: This is a minimal deployment optimized for cost, not performance or high availability.

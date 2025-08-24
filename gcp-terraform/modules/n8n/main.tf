@@ -552,9 +552,9 @@ resource "kubernetes_network_policy" "n8n_network_policy" {
   }
 }
 
-# Horizontal Pod Autoscaler for N8N
+# Horizontal Pod Autoscaler for N8N - disabled for singularity (single replica)
 resource "kubernetes_horizontal_pod_autoscaler_v2" "n8n_hpa" {
-  count = var.enable_autoscaling ? 1 : 0
+  count = var.enable_autoscaling && var.n8n_replicas > 1 ? 1 : 0
 
   metadata {
     name      = "n8n-hpa"
@@ -621,8 +621,10 @@ resource "kubernetes_horizontal_pod_autoscaler_v2" "n8n_hpa" {
   }
 }
 
-# Pod Disruption Budget
+# Pod Disruption Budget - only for multi-replica deployments
 resource "kubernetes_pod_disruption_budget_v1" "n8n_pdb" {
+  count = var.n8n_replicas > 1 ? 1 : 0
+
   metadata {
     name      = "n8n-pdb"
     namespace = kubernetes_namespace.n8n.metadata[0].name

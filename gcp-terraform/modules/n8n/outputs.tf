@@ -75,10 +75,10 @@ output "autoscaling_enabled" {
 
 output "hpa_name" {
   description = "Name of the horizontal pod autoscaler"
-  value       = var.enable_autoscaling ? kubernetes_horizontal_pod_autoscaler_v2.n8n_hpa[0].metadata[0].name : null
+  value       = var.enable_autoscaling && var.n8n_replicas > 1 ? kubernetes_horizontal_pod_autoscaler_v2.n8n_hpa[0].metadata[0].name : null
 }
 
 output "pod_disruption_budget_name" {
   description = "Name of the pod disruption budget"
-  value       = kubernetes_pod_disruption_budget_v1.n8n_pdb.metadata[0].name
+  value       = var.n8n_replicas > 1 ? kubernetes_pod_disruption_budget_v1.n8n_pdb[0].metadata[0].name : null
 }

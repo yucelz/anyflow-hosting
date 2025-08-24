@@ -30,10 +30,10 @@ resource "google_service_account" "workload_identity_service_account" {
   description  = "Service account for Workload Identity in ${var.cluster_name} cluster"
 }
 
-# Create GKE cluster (Regional for high availability)
+# Create GKE cluster (Zonal for singularity, Regional for others)
 resource "google_container_cluster" "primary" {
   name     = var.cluster_name
-  location = var.region  # Changed from var.zone to var.region for regional cluster
+  location = var.max_node_count <= 2 ? var.zone : var.region  # Use zonal for singularity (max 2 nodes)
 
   network    = var.network_name
   subnetwork = var.subnet_name
@@ -46,11 +46,12 @@ resource "google_container_cluster" "primary" {
   min_master_version = var.kubernetes_version == "latest" ? null : var.kubernetes_version
 
   # For regional clusters, specify node locations (zones within the region)
-  node_locations = var.node_locations != null ? var.node_locations : [
+  # For zonal clusters (singularity), this is ignored
+  node_locations = var.max_node_count <= 2 ? null : (var.node_locations != null ? var.node_locations : [
     "${var.region}-a",
     "${var.region}-b",
     "${var.region}-c"
-  ]
+  ])
 
   # Network configuration
   ip_allocation_policy {
@@ -112,18 +113,21 @@ resource "google_container_cluster" "primary" {
   logging_service    = "logging.googleapis.com/kubernetes"
   monitoring_service = "monitoring.googleapis.com/kubernetes"
 
-  # Cluster autoscaling
-  cluster_autoscaling {
-    enabled = true
-    resource_limits {
-      resource_type = "cpu"
-      minimum       = 1
-      maximum       = 100
-    }
-    resource_limits {
-      resource_type = "memory"
-      minimum       = 2
-      maximum       = 1000
+  # Cluster autoscaling - disabled for singularity to enforce strict limits
+  dynamic "cluster_autoscaling" {
+    for_each = var.max_node_count > 2 ? [1] : []
+    content {
+      enabled = true
+      resource_limits {
+        resource_type = "cpu"
+        minimum       = 1
+        maximum       = 100
+      }
+      resource_limits {
+        resource_type = "memory"
+        minimum       = 2
+        maximum       = 1000
+      }
     }
   }
 
@@ -156,7 +160,7 @@ resource "google_container_cluster" "primary" {
 # Create node pool
 resource "google_container_node_pool" "primary_nodes" {
   name       = var.node_pool_name
-  location   = var.region  # Changed from var.zone to var.region to match cluster location
+  location   = var.max_node_count <= 2 ? var.zone : var.region  # Match cluster location type
   cluster    = google_container_cluster.primary.name
   
   # Auto-scaling configuration

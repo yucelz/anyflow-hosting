@@ -32,7 +32,8 @@ resource "google_project_service" "required_apis" {
   for_each = toset([
     "container.googleapis.com",
     "compute.googleapis.com",
-    "certificatemanager.googleapis.com"
+    "certificatemanager.googleapis.com",
+    "iam.googleapis.com"
   ])
 
   service = each.value
@@ -83,9 +84,11 @@ module "gke" {
   preemptible_nodes      = var.preemptible_nodes
   
   # Security
-  enable_network_policy   = var.enable_network_policy
-  enable_workload_identity = var.enable_workload_identity
-  authorized_networks     = var.authorized_networks
+  enable_network_policy      = var.enable_network_policy
+  enable_workload_identity   = var.enable_workload_identity
+  workload_identity_namespace = var.n8n_namespace
+  workload_identity_ksa_name = "n8n-ksa"
+  authorized_networks        = var.authorized_networks
   
   labels = local.common_labels
 

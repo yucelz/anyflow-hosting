@@ -104,7 +104,7 @@ Key variables to configure:
 
 ## 🛠️ Usage
 
-### Deployment Commands
+### infrastructure Deployment Commands
 
 ```bash
 #  # First deploy infrastructure only
@@ -112,6 +112,18 @@ Key variables to configure:
 
 # Apply deployment
 ./scripts/deploy.sh dev apply-infra
+```
+
+## Check what infrastructure exists
+```bash
+./scripts/deploy.sh dev output
+
+# Or see the full state
+./scripts/deploy.sh dev show
+```
+
+### applications Deployment Commands
+```bash
 
 # Then deploy applications
 ./scripts/deploy.sh dev plan-apps  
@@ -124,6 +136,10 @@ Key variables to configure:
 
 # Destroy (careful!)
 ./scripts/destroy.sh dev
+
+# WHEN you NEED to RE-RUN the plan 
+rm -f terraform-dev-infra.tfplan
+rm -f terraform-dev-apps.tfplan
 ```
 
 ### Manual Terraform Commands
@@ -174,6 +190,22 @@ kubectl scale deployment n8n-deployment --replicas=2 -n n8n
 
 # Port forward for local access
 kubectl port-forward -n n8n service/n8n-service 8080:80
+```
+### Destroy Scripts
+
+```bash
+# Destroy everything (default behavior)
+./scripts/destroy.sh dev
+
+# Destroy only applications (keep cluster running)
+./scripts/destroy.sh dev apps
+
+# Destroy only infrastructure (will also destroy apps)
+./scripts/destroy.sh dev infra
+
+# Staged destruction for production
+./scripts/destroy.sh prod apps   # First destroy applications
+./scripts/destroy.sh prod infra  # Then destroy infrastructure
 ```
 
 ## 🔧 Configuration Options

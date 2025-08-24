@@ -649,9 +649,24 @@ if [ "$DESTROY_MODE" = true ]; then
         exit 1
     fi
     
-    # Stage 3: Destroy network infrastructure
+    # Stage 3: Destroy network infrastructure (router first)
     print_section "STAGE 3: DESTROYING NETWORK"
-    print_status "Destroying network infrastructure..."
+    
+    # First destroy the NAT router specifically
+    print_status "Destroying NAT router first..."
+    local router_name="${ENVIRONMENT}-n8n-cluster-n8n-vpc-router"
+    
+    if gcloud compute routers delete "$router_name" \
+        --region="$REGION" \
+        --project="$PROJECT_ID" \
+        --quiet 2>/dev/null; then
+        print_success "NAT router $router_name destroyed successfully"
+    else
+        print_warning "NAT router $router_name may not exist or already destroyed"
+    fi
+    
+    # Then destroy the rest of the network infrastructure
+    print_status "Destroying remaining network infrastructure..."
     
     if terraform destroy -target="module.network" \
         -var-file="environments/$ENVIRONMENT/terraform.tfvars" \

@@ -104,7 +104,7 @@ resource "time_sleep" "wait_for_cluster" {
 # Data source to verify cluster is accessible
 data "google_container_cluster" "cluster" {
   name       = local.name_prefix
-  location   = var.region
+  location   = var.max_node_count <= 2 ? var.zone : var.region  # Match GKE module logic
   depends_on = [time_sleep.wait_for_cluster]
 }
 
@@ -115,7 +115,7 @@ resource "null_resource" "get_credentials" {
   provisioner "local-exec" {
     command = <<-EOT
       # Get cluster credentials
-      gcloud container clusters get-credentials ${local.name_prefix} --region=${var.region} --project=${var.project_id}
+      gcloud container clusters get-credentials ${local.name_prefix} --${var.max_node_count <= 2 ? "zone" : "region"}=${var.max_node_count <= 2 ? var.zone : var.region} --project=${var.project_id}
       
       # Test cluster connectivity
       kubectl cluster-info --request-timeout=30s

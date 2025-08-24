@@ -46,8 +46,8 @@ validate_environment() {
 
 # Validate action
 validate_action() {
-    if [[ ! "$ACTION" =~ ^(init|plan|apply|destroy|show|output)$ ]]; then
-        print_error "Invalid action: $ACTION. Must be one of: init, plan, apply, destroy, show, output"
+    if [[ ! "$ACTION" =~ ^(init|plan|apply|destroy|show|output|plan-infra|apply-infra|plan-apps|apply-apps)$ ]]; then
+        print_error "Invalid action: $ACTION. Must be one of: init, plan, apply, destroy, show, output, plan-infra, apply-infra, plan-apps, apply-apps"
         exit 1
     fi
 }
@@ -109,9 +109,228 @@ init_terraform() {
     print_success "Terraform initialized"
 }
 
-# Plan deployment
+# Plan infrastructure only (without Kubernetes resources)
+plan_infrastructure() {
+    print_info "Planning infrastructure deployment for environment: $ENVIRONMENT"
+    cd "$PROJECT_ROOT"
+    
+    local var_file="environments/$ENVIRONMENT/terraform.tfvars"
+    local plan_file="terraform-$ENVIRONMENT-infra.tfplan"
+    
+    # Target only infrastructure resources
+    terraform plan \
+        -var-file="$var_file" \
+        -target=module.network \
+        -target=module.gke \
+        -target=google_project_service.required_apis \
+        -target=random_password.postgres_password \
+        -target=random_password.n8n_basic_auth_password \
+        -target=random_password.n8n_encryption_key \
+        -out="$plan_file" \
+        -detailed-exitcode
+    
+    local exit_code=$?
+    
+    if [[ $exit_code -eq 0 ]]; then
+        print_success "No infrastructure changes required"
+    elif [[ $exit_code -eq 2 ]]; then
+        print_success "Infrastructure plan created successfully: $plan_file"
+    else
+        print_error "Infrastructure planning failed"
+        exit 1
+    fi
+}
+
+# Apply infrastructure only
+apply_infrastructure() {
+    print_info "Applying infrastructure deployment for environment: $ENVIRONMENT"
+    cd "$PROJECT_ROOT"
+    
+    local var_file="environments/$ENVIRONMENT/terraform.tfvars"
+    local plan_file="terraform-$ENVIRONMENT-infra.tfplan"
+    
+    # Create infrastructure plan if it doesn't exist
+    if [[ ! -f "$plan_file" ]]; then
+        print_info "Infrastructure plan file not found, creating one..."
+        terraform plan \
+            -var-file="$var_file" \
+            -target=module.network \
+            -target=module.gke \
+            -target=google_project_service.required_apis \
+            -target=random_password.postgres_password \
+            -target=random_password.n8n_basic_auth_password \
+            -target=random_password.n8n_encryption_key \
+            -out="$plan_file"
+    fi
+    
+    # Apply infrastructure
+    terraform apply "$plan_file"
+    
+    if [[ $? -eq 0 ]]; then
+        print_success "Infrastructure deployment completed successfully!"
+        rm -f "$plan_file"
+        
+        # Wait for cluster to be ready and get credentials
+        print_info "Waiting for cluster to be ready and getting credentials..."
+        sleep 30
+        
+        # Get cluster credentials
+        local cluster_name=$(terraform output -raw cluster_name 2>/dev/null || echo "")
+        local project_id=$(terraform output -raw project_id 2>/dev/null || echo "")
+        local region=$(terraform output -raw region 2>/dev/null || echo "")
+        
+        if [[ -n "$cluster_name" && -n "$project_id" && -n "$region" ]]; then
+            gcloud container clusters get-credentials "$cluster_name" --region="$region" --project="$project_id"
+            
+            # Test cluster connectivity
+            print_info "Testing cluster connectivity..."
+            kubectl cluster-info --request-timeout=30s
+            
+            if [[ $? -eq 0 ]]; then
+                print_success "Cluster is ready for application deployment!"
+                print_info "You can now run: $0 $ENVIRONMENT plan-apps"
+            else
+                print_warning "Cluster connectivity test failed, but infrastructure is deployed."
+            fi
+        else
+            print_warning "Could not get cluster information from Terraform outputs"
+        fi
+    else
+        print_error "Infrastructure deployment failed"
+        exit 1
+    fi
+}
+
+# Plan applications (N8N and Kubernetes resources)
+plan_applications() {
+    print_info "Planning applications deployment for environment: $ENVIRONMENT"
+    cd "$PROJECT_ROOT"
+    
+    local var_file="environments/$ENVIRONMENT/terraform.tfvars"
+    local plan_file="terraform-$ENVIRONMENT-apps.tfplan"
+    
+    # Ensure cluster credentials are available
+    setup_cluster_credentials
+    
+    # Target only application resources
+    terraform plan \
+        -var-file="$var_file" \
+        -target=module.n8n \
+        -target=time_sleep.wait_for_cluster \
+        -target=data.google_container_cluster.cluster \
+        -target=null_resource.get_credentials \
+        -out="$plan_file" \
+        -detailed-exitcode
+    
+    local exit_code=$?
+    
+    if [[ $exit_code -eq 0 ]]; then
+        print_success "No application changes required"
+    elif [[ $exit_code -eq 2 ]]; then
+        print_success "Applications plan created successfully: $plan_file"
+    else
+        print_error "Applications planning failed"
+        exit 1
+    fi
+}
+
+# Apply applications
+apply_applications() {
+    print_info "Applying applications deployment for environment: $ENVIRONMENT"
+    cd "$PROJECT_ROOT"
+    
+    local var_file="environments/$ENVIRONMENT/terraform.tfvars"
+    local plan_file="terraform-$ENVIRONMENT-apps.tfplan"
+    
+    # Ensure cluster credentials are available
+    setup_cluster_credentials
+    
+    # Create application plan if it doesn't exist
+    if [[ ! -f "$plan_file" ]]; then
+        print_info "Applications plan file not found, creating one..."
+        terraform plan \
+            -var-file="$var_file" \
+            -target=module.n8n \
+            -target=time_sleep.wait_for_cluster \
+            -target=data.google_container_cluster.cluster \
+            -target=null_resource.get_credentials \
+            -out="$plan_file"
+    fi
+    
+    # Apply applications
+    terraform apply "$plan_file"
+    
+    if [[ $? -eq 0 ]]; then
+        print_success "Applications deployment completed successfully!"
+        rm -f "$plan_file"
+        
+        # Show important outputs
+        show_deployment_info
+    else
+        print_error "Applications deployment failed"
+        exit 1
+    fi
+}
+
+# Setup cluster credentials
+setup_cluster_credentials() {
+    print_info "Setting up cluster credentials..."
+    
+    # Try to get cluster info from Terraform state
+    local cluster_name=$(terraform output -raw cluster_name 2>/dev/null || echo "")
+    local project_id=$(terraform output -raw project_id 2>/dev/null || echo "")
+    local region=$(terraform output -raw region 2>/dev/null || echo "")
+    
+    if [[ -n "$cluster_name" && -n "$project_id" && -n "$region" ]]; then
+        gcloud container clusters get-credentials "$cluster_name" --region="$region" --project="$project_id"
+        
+        # Test connectivity
+        if ! kubectl cluster-info --request-timeout=10s >/dev/null 2>&1; then
+            print_warning "Cluster connectivity test failed. Cluster might still be initializing."
+            print_info "Waiting 60 seconds for cluster to be ready..."
+            sleep 60
+        fi
+    else
+        print_error "Could not get cluster information. Make sure infrastructure is deployed first."
+        print_info "Run: $0 $ENVIRONMENT apply-infra"
+        exit 1
+    fi
+}
+
+# Show deployment information
+show_deployment_info() {
+    print_info "Deployment Information:"
+    echo ""
+    
+    # Show important outputs
+    terraform output n8n_url 2>/dev/null || echo "N8N URL: Not available"
+    terraform output ingress_ip 2>/dev/null || echo "Ingress IP: Not available"
+    
+    # Check pod status
+    local namespace=$(terraform output -raw n8n_namespace 2>/dev/null || echo "n8n")
+    print_info "Checking deployment status..."
+    kubectl get pods -n "$namespace" || echo "Could not get pod status"
+    
+    echo ""
+    print_success "Deployment completed!"
+    
+    local n8n_url=$(terraform output -raw n8n_url 2>/dev/null || echo "")
+    local ingress_ip=$(terraform output -raw ingress_ip 2>/dev/null || echo "")
+    local domain_name=$(terraform output -raw domain_name 2>/dev/null || echo "")
+    
+    if [[ -n "$n8n_url" ]]; then
+        print_info "N8N URL: $n8n_url"
+    fi
+    
+    if [[ -n "$domain_name" && -n "$ingress_ip" ]]; then
+        print_info "Configure your DNS: $domain_name -> $ingress_ip"
+    fi
+}
+
+# Plan full deployment
 plan_deployment() {
-    print_info "Planning deployment for environment: $ENVIRONMENT"
+    print_info "Planning full deployment for environment: $ENVIRONMENT"
+    print_warning "This may fail if the cluster doesn't exist yet. Consider using plan-infra first."
     cd "$PROJECT_ROOT"
     
     local var_file="environments/$ENVIRONMENT/terraform.tfvars"
@@ -130,56 +349,23 @@ plan_deployment() {
         print_success "Plan created successfully: $plan_file"
     else
         print_error "Planning failed"
+        print_info "Try running: $0 $ENVIRONMENT plan-infra"
         exit 1
     fi
 }
 
-# Apply deployment
+# Apply full deployment
 apply_deployment() {
-    print_info "Applying deployment for environment: $ENVIRONMENT"
-    cd "$PROJECT_ROOT"
+    print_info "Applying full deployment for environment: $ENVIRONMENT"
+    print_info "This will deploy infrastructure first, then applications."
     
-    local var_file="environments/$ENVIRONMENT/terraform.tfvars"
-    local plan_file="terraform-$ENVIRONMENT.tfplan"
+    # Deploy infrastructure first
+    apply_infrastructure
     
-    # Create plan first if it doesn't exist
-    if [[ ! -f "$plan_file" ]]; then
-        print_info "Plan file not found, creating one..."
-        terraform plan \
-            -var-file="$var_file" \
-            -out="$plan_file"
-    fi
-    
-    # Apply the plan
-    terraform apply "$plan_file"
-    
-    if [[ $? -eq 0 ]]; then
-        print_success "Deployment completed successfully!"
-        
-        # Clean up plan file
-        rm -f "$plan_file"
-        
-        # Show important outputs
-        print_info "Important outputs:"
-        terraform output n8n_url
-        terraform output ingress_ip
-        terraform output kubectl_config_command
-        
-        # Configure kubectl
-        print_info "Configuring kubectl..."
-        local kubectl_cmd=$(terraform output -raw kubectl_config_command)
-        eval "$kubectl_cmd"
-        
-        print_info "Checking deployment status..."
-        kubectl get pods -n $(terraform output -raw n8n_namespace)
-        
-        print_success "Deployment is ready!"
-        print_info "N8N URL: $(terraform output -raw n8n_url)"
-        print_info "Please configure your DNS to point $(terraform output -raw domain_name) to $(terraform output -raw ingress_ip)"
-    else
-        print_error "Deployment failed"
-        exit 1
-    fi
+    # Then deploy applications
+    print_info "Now deploying applications..."
+    sleep 10
+    apply_applications
 }
 
 # Destroy infrastructure
@@ -247,6 +433,22 @@ main() {
             init_terraform
             apply_deployment
             ;;
+        plan-infra)
+            init_terraform
+            plan_infrastructure
+            ;;
+        apply-infra)
+            init_terraform
+            apply_infrastructure
+            ;;
+        plan-apps)
+            init_terraform
+            plan_applications
+            ;;
+        apply-apps)
+            init_terraform
+            apply_applications
+            ;;
         destroy)
             init_terraform
             destroy_deployment
@@ -270,12 +472,21 @@ if [[ $# -eq 0 ]]; then
     echo ""
     echo "Environments: dev, staging, prod"
     echo "Actions: init, plan, apply, destroy, show, output"
+    echo "         plan-infra, apply-infra, plan-apps, apply-apps"
     echo ""
-    echo "Examples:"
-    echo "  $0 dev plan     - Plan development deployment"
-    echo "  $0 dev apply    - Apply development deployment"
-    echo "  $0 prod plan    - Plan production deployment"
-    echo "  $0 prod destroy - Destroy production deployment"
+    echo "Staged deployment (recommended):"
+    echo "  $0 dev plan-infra   - Plan infrastructure only"
+    echo "  $0 dev apply-infra  - Deploy infrastructure (GKE cluster)"
+    echo "  $0 dev plan-apps    - Plan applications (N8N)"
+    echo "  $0 dev apply-apps   - Deploy applications"
+    echo ""
+    echo "Full deployment:"
+    echo "  $0 dev plan         - Plan everything (may fail if cluster doesn't exist)"
+    echo "  $0 dev apply        - Deploy everything (staged automatically)"
+    echo ""
+    echo "Other actions:"
+    echo "  $0 dev output       - Show outputs"
+    echo "  $0 dev destroy      - Destroy everything"
     exit 1
 fi
 

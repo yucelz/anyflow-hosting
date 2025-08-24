@@ -75,7 +75,13 @@ n8n-gcp-terraform/
 
 4. **Deploy:**
    ```bash
-   ./scripts/deploy.sh dev apply
+   # First deploy infrastructure only
+./scripts/deploy.sh dev plan-infra
+./scripts/deploy.sh dev apply-infra
+
+# Then deploy applications
+./scripts/deploy.sh dev plan-apps  
+./scripts/deploy.sh dev apply-apps
    ```
 
 ### Environment Configuration
@@ -101,11 +107,17 @@ Key variables to configure:
 ### Deployment Commands
 
 ```bash
-# Plan deployment
-./scripts/deploy.sh dev plan
+#  # First deploy infrastructure only
+./scripts/deploy.sh dev plan-infra
 
 # Apply deployment
-./scripts/deploy.sh dev apply
+./scripts/deploy.sh dev apply-infra
+
+# Then deploy applications
+./scripts/deploy.sh dev plan-apps  
+
+# Apply deployment
+./scripts/deploy.sh dev apply-apps
 
 # Check status
 ./scripts/get-credentials.sh dev

@@ -1,16 +1,3 @@
-# Configure the Google Cloud Provider
-provider "google" {
-  project = var.project_id
-  region  = var.region
-  zone    = var.zone
-}
-
-provider "google-beta" {
-  project = var.project_id
-  region  = var.region
-  zone    = var.zone
-}
-
 # Get current client configuration
 data "google_client_config" "default" {}
 
@@ -105,14 +92,41 @@ module "gke" {
   depends_on = [module.network]
 }
 
-# Configure Kubernetes provider
-provider "kubernetes" {
-  host                   = "https://${module.gke.cluster_endpoint}"
-  token                  = data.google_client_config.default.access_token
-  cluster_ca_certificate = base64decode(module.gke.cluster_ca_certificate)
+# Time delay to ensure cluster is fully ready
+resource "time_sleep" "wait_for_cluster" {
+  create_duration = "60s"
+  depends_on     = [module.gke]
 }
 
-# N8N Module
+# Data source to verify cluster is accessible
+data "google_container_cluster" "cluster" {
+  name       = local.name_prefix
+  location   = var.region
+  depends_on = [time_sleep.wait_for_cluster]
+}
+
+# Local exec to get credentials
+resource "null_resource" "get_credentials" {
+  depends_on = [data.google_container_cluster.cluster]
+  
+  provisioner "local-exec" {
+    command = <<-EOT
+      # Get cluster credentials
+      gcloud container clusters get-credentials ${local.name_prefix} --region=${var.region} --project=${var.project_id}
+      
+      # Test cluster connectivity
+      kubectl cluster-info --request-timeout=30s
+    EOT
+  }
+  
+  # Re-run if cluster changes
+  triggers = {
+    cluster_endpoint = data.google_container_cluster.cluster.endpoint
+    cluster_name     = local.name_prefix
+  }
+}
+
+# N8N Module - only deploy after cluster is verified ready
 module "n8n" {
   source = "./modules/n8n"
 
@@ -156,5 +170,8 @@ module "n8n" {
   
   labels = local.common_labels
 
-  depends_on = [module.gke]
+  depends_on = [
+    null_resource.get_credentials,
+    data.google_container_cluster.cluster
+  ]
 }

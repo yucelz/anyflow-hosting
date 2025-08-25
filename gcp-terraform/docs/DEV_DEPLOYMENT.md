@@ -93,6 +93,16 @@ The development environment now uses a modular deployment approach with three sp
 ./scripts/dev-app.sh                  # Deploy application
 ./scripts/dev-app.sh --destroy        # Destroy application
 ./scripts/dev-app.sh --help           # Show help
+
+# Application health and endpoint testing
+./scripts/dev-app-test.sh             # Test application health and endpoints
+./scripts/dev-app-test.sh --help      # Show help
+
+# Environment status check
+./scripts/dev-status.sh               # Check status of all components
+./scripts/dev-status.sh --infra       # Check only infrastructure status
+./scripts/dev-status.sh --app         # Check only application status
+./scripts/dev-status.sh --help        # Show help
 ```
 
 #### Modular Deployment Benefits
@@ -116,6 +126,16 @@ The development environment now uses a modular deployment approach with three sp
 - **Proper Sequencing**: Infrastructure first, then application
 - **Safe Destruction Order**: Application first, then infrastructure
 - **Backward Compatibility**: Maintains original script behavior
+
+**Testing Script (`dev-app-test.sh`)**:
+- **Application Health Checks**: Verifies N8N and PostgreSQL health
+- **Endpoint Reachability**: Confirms N8N application is accessible
+- **GCP & Kubernetes Connectivity**: Ensures environment is operational
+
+**Status Script (`dev-status.sh`)**:
+- **Comprehensive Overview**: Checks status of both infrastructure and application components
+- **Detailed Reporting**: Provides granular status for VPC, GKE, N8N, PostgreSQL, and network access
+- **Authentication Validation**: Ensures GCP authentication is active
 
 ### Manual Deployment
 
@@ -222,6 +242,12 @@ kubectl top pods -n n8n
 # Check logs
 kubectl logs -n n8n deployment/n8n-deployment
 kubectl logs -n n8n statefulset/n8n-postgres
+
+# Check application health and endpoints
+./scripts/dev-app-test.sh
+
+# Check overall environment status
+./scripts/dev-status.sh
 ```
 
 ### Scaling Considerations
@@ -235,7 +261,7 @@ If you need to scale beyond dev limits:
 
 ### Estimated Monthly Costs (US Central1)
 - **GKE Cluster**: ~$73/month (cluster management fee)
-- **Compute Instances**: ~$10-20/month (2 x e2-micro preemptible)
+- **Compute Instances**: ~$10-20/month (2 x e2-medium preemptible)
 - **Storage**: ~$1/month (5Gi standard disk)
 - **Networking**: ~$1-5/month (ingress/egress)
 - **Load Balancer**: ~$18/month (GCP Load Balancer)

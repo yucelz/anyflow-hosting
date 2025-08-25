@@ -438,8 +438,8 @@ echo -e "${YELLOW}  • N8N: Single replica (100m CPU, 128Mi RAM)${NC}"
 echo -e "${YELLOW}  • PostgreSQL: Single instance (50m CPU, 64Mi RAM)${NC}"
 echo -e "${YELLOW}  • Storage: 5Gi minimal storage${NC}"
 echo -e "${YELLOW}  • Ingress: SSL-enabled load balancer${NC}"
-echo -e "${YELLOW}  • Monitoring: Enabled${NC}"
-echo -e "${YELLOW}  • Workload Identity: Enabled${NC}"
+echo -e "${YELLOW}  • Monitoring: Disabled${NC}"
+echo -e "${YELLOW}  • Workload Identity: Disabled${NC}"
 
 # Ask for confirmation for application
 echo ""

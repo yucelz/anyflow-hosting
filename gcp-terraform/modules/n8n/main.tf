@@ -251,16 +251,16 @@ resource "kubernetes_deployment" "n8n" {
             }
           }
 
-          # Health checks
+          # Health checks - more lenient for development
           liveness_probe {
             http_get {
               path = "/healthz"
               port = 5678
             }
-            initial_delay_seconds = 60
+            initial_delay_seconds = 120
             period_seconds        = 30
             timeout_seconds       = 10
-            failure_threshold     = 3
+            failure_threshold     = 5
           }
 
           readiness_probe {
@@ -268,22 +268,22 @@ resource "kubernetes_deployment" "n8n" {
               path = "/healthz"
               port = 5678
             }
-            initial_delay_seconds = 30
-            period_seconds        = 5
+            initial_delay_seconds = 60
+            period_seconds        = 10
             timeout_seconds       = 5
-            failure_threshold     = 3
+            failure_threshold     = 5
           }
 
-          # Startup probe
+          # Startup probe - more generous timing
           startup_probe {
             http_get {
               path = "/healthz"
               port = 5678
             }
-            initial_delay_seconds = 30
-            period_seconds        = 10
-            timeout_seconds       = 5
-            failure_threshold     = 30
+            initial_delay_seconds = 60
+            period_seconds        = 15
+            timeout_seconds       = 10
+            failure_threshold     = 40
           }
 
           resources {

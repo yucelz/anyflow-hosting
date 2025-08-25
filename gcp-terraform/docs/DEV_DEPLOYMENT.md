@@ -18,7 +18,7 @@ The dev deployment is a cost-optimized, minimal resource configuration that prov
 | Component | Configuration | Resource Allocation |
 |-----------|---------------|-------------------|
 | **GKE Cluster** | Zonal (single zone) | us-central1-a |
-| **Node Pool** | 1-2 nodes max | e2-micro (1 vCPU, 1GB RAM) |
+| **Node Pool** | 1-2 nodes max | e2-medium (2 vCPU, 4GB RAM) |
 | **N8N Application** | Single replica | 100m CPU, 128Mi RAM |
 | **PostgreSQL** | Single instance | 50m CPU, 64Mi RAM |
 | **Storage** | Minimal | 5Gi persistent disk |
@@ -30,7 +30,7 @@ The dev deployment is a cost-optimized, minimal resource configuration that prov
 |---------|----------------------|-----------------|
 | Cluster Type | Regional (3 zones) | Zonal (1 zone) |
 | Max Nodes | 5+ | 2 |
-| Machine Type | e2-standard-2 | e2-micro |
+| Machine Type | e2-standard-2 | e2-medium |
 | N8N CPU | 500m request, 1000m limit | 100m request, 200m limit |
 | N8N Memory | 512Mi request, 1Gi limit | 128Mi request, 256Mi limit |
 | PostgreSQL CPU | 250m request, 500m limit | 50m request, 100m limit |
@@ -59,49 +59,63 @@ The dev deployment is a cost-optimized, minimal resource configuration that prov
 
 ### Quick Deployment
 
-Use the dedicated dev deployment script with comprehensive validation and deletion protection handling:
+The development environment now uses a modular deployment approach with three specialized scripts:
 
+#### Complete Environment Deployment
 ```bash
-# Deploy the development environment
+# Deploy complete environment (infrastructure + application)
 ./scripts/dev-deploy.sh
 
-# Destroy the development environment
+# Deploy only infrastructure (Network + GKE)
+./scripts/dev-deploy.sh --infra-only
+
+# Deploy only application (requires infrastructure)
+./scripts/dev-deploy.sh --app-only
+
+# Destroy complete environment
 ./scripts/dev-deploy.sh --destroy
+
+# Destroy only application (keep infrastructure)
+./scripts/dev-deploy.sh --destroy --app-only
 
 # Show help and usage information
 ./scripts/dev-deploy.sh --help
 ```
 
-#### Script Features
+#### Individual Component Scripts
+```bash
+# Infrastructure deployment (Network + GKE cluster)
+./scripts/dev-infra.sh                # Deploy infrastructure
+./scripts/dev-infra.sh --destroy      # Destroy infrastructure
+./scripts/dev-infra.sh --help         # Show help
 
-The `dev-deploy.sh` script provides:
+# Application deployment (N8N + PostgreSQL)
+./scripts/dev-app.sh                  # Deploy application
+./scripts/dev-app.sh --destroy        # Destroy application
+./scripts/dev-app.sh --help           # Show help
+```
 
-- **Comprehensive Pre-deployment Validation**
-  - GCP authentication and project access verification
-  - Required API enablement
-  - Terraform configuration validation
-  - Network, GKE, and N8N prerequisite checks
+#### Modular Deployment Benefits
 
-- **Staged Deployment Process**
-  - Stage 1: Infrastructure (Network + GKE cluster)
-  - Stage 2: Application (N8N + PostgreSQL)
-  - Post-deployment validation for each stage
+**Infrastructure Script (`dev-infra.sh`)**:
+- **Focused Scope**: Network + GKE cluster deployment only
+- **Prerequisites Validation**: GCP authentication, APIs, quotas
+- **Deletion Protection Handling**: Automatic detection and resolution
+- **Network Validation**: VPC, subnets, firewall rules, NAT gateway
+- **GKE Validation**: Cluster status, node pools, kubectl connectivity
 
-- **Automatic Deletion Protection Handling**
-  - Detects GKE deletion protection settings
-  - Automatically disables protection when destroying clusters
-  - Provides manual instructions if automatic handling fails
+**Application Script (`dev-app.sh`)**:
+- **Infrastructure Dependency Check**: Validates GKE cluster exists and is ready
+- **Extended Health Checks**: 600s timeout for pod readiness
+- **Optimized Resource Requirements**: Reduced CPU/memory for development
+- **SSL Certificate Monitoring**: Tracks certificate provisioning status
+- **Comprehensive Application Validation**: Pods, services, ingress status
 
-- **Safe Destruction Process**
-  - Stage 1: Destroy N8N application
-  - Stage 2: Destroy GKE cluster (with protection handling)
-  - Stage 3: Destroy network infrastructure
-  - Stage 4: Clean up remaining resources
-
-- **Enhanced Error Handling**
-  - Clear error messages with actionable instructions
-  - Graceful fallback to manual intervention
-  - Comprehensive logging of all operations
+**Orchestration Script (`dev-deploy.sh`)**:
+- **Flexible Deployment Options**: Complete, infrastructure-only, or application-only
+- **Proper Sequencing**: Infrastructure first, then application
+- **Safe Destruction Order**: Application first, then infrastructure
+- **Backward Compatibility**: Maintains original script behavior
 
 ### Manual Deployment
 
@@ -139,7 +153,7 @@ The `dev-deploy.sh` script provides:
 - **Type**: Zonal cluster (single zone for cost optimization)
 - **Location**: us-central1-a
 - **Node Pool**: 1-2 nodes maximum
-- **Machine Type**: e2-micro (1 vCPU, 1GB RAM, preemptible)
+- **Machine Type**: e2-medium (2 vCPU, 4GB RAM, preemptible)
 - **Disk**: 20GB standard persistent disk per node
 
 ### Application Resources

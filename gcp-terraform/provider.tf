@@ -20,4 +20,46 @@ provider "kubernetes" {
   ignore_annotations = [
     "kubectl.kubernetes.io/last-applied-configuration",
   ]
+  
+  # Add timeout configurations to prevent rate limiter issues
+  experiments {
+    manifest_resource = true
+  }
+  
+  # Configure client timeouts
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    command     = "gcloud"
+    args = [
+      "container",
+      "clusters",
+      "get-credentials",
+      var.cluster_name != null ? "${var.environment}-${var.cluster_name}" : "dev-n8n-cluster",
+      "--region=${var.region}",
+      "--project=${var.project_id}",
+      "--format=json"
+    ]
+  }
+}
+
+# Configure Helm provider with timeout settings
+provider "helm" {
+  kubernetes {
+    config_path = "~/.kube/config"
+    
+    # Configure client timeouts
+    exec {
+      api_version = "client.authentication.k8s.io/v1beta1"
+      command     = "gcloud"
+      args = [
+        "container",
+        "clusters", 
+        "get-credentials",
+        var.cluster_name != null ? "${var.environment}-${var.cluster_name}" : "dev-n8n-cluster",
+        "--region=${var.region}",
+        "--project=${var.project_id}",
+        "--format=json"
+      ]
+    }
+  }
 }

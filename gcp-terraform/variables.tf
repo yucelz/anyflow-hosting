@@ -254,6 +254,18 @@ variable "postgres_memory_limit" {
   default     = "512Mi"
 }
 
+variable "postgres_non_root_user" {
+  description = "PostgreSQL non-root user for n8n"
+  type        = string
+  default     = "n8n"
+}
+
+variable "postgres_non_root_password" {
+  description = "PostgreSQL non-root password for n8n"
+  type        = string
+  sensitive   = true
+}
+
 # SSL and Ingress Configuration
 variable "enable_ssl" {
   description = "Enable SSL certificate for ingress"

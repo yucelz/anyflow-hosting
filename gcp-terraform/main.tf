@@ -27,6 +27,11 @@ resource "random_password" "n8n_encryption_key" {
   special = true
 }
 
+resource "random_password" "postgres_non_root_password" {
+  length  = 16
+  special = true
+}
+
 # Enable required APIs
 resource "google_project_service" "required_apis" {
   for_each = toset([
@@ -132,6 +137,12 @@ resource "null_resource" "get_credentials" {
   }
 }
 
+# Time delay to ensure Kubernetes API is fully ready before deploying n8n
+resource "time_sleep" "wait_for_kubernetes_api" {
+  create_duration = "90s" # Increased wait time for API to stabilize
+  depends_on     = [null_resource.get_credentials]
+}
+
 # N8N Module - only deploy after cluster is verified ready
 module "n8n" {
   source = "./modules/n8n"
@@ -148,10 +159,12 @@ module "n8n" {
   n8n_encryption_key      = random_password.n8n_encryption_key.result
   
   # Database configuration
-  postgres_image_tag      = var.postgres_image_tag
-  postgres_password       = random_password.postgres_password.result
-  postgres_storage_size   = var.postgres_storage_size
-  postgres_storage_class  = var.postgres_storage_class
+  postgres_image_tag         = var.postgres_image_tag
+  postgres_password          = random_password.postgres_password.result
+  postgres_non_root_user     = var.postgres_non_root_user
+  postgres_non_root_password = random_password.postgres_non_root_password.result
+  postgres_storage_size      = var.postgres_storage_size
+  postgres_storage_class     = var.postgres_storage_class
   
   # Resource limits
   n8n_cpu_request       = var.n8n_cpu_request
@@ -177,6 +190,7 @@ module "n8n" {
   labels = local.common_labels
 
   depends_on = [
+    time_sleep.wait_for_kubernetes_api, # Added dependency
     null_resource.get_credentials,
     data.google_container_cluster.cluster
   ]

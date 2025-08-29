@@ -76,13 +76,26 @@ The development environment now uses a modular deployment approach with three sp
 ./scripts/dev-deploy.sh --destroy
 # OR 
 terraform destroy -auto-approve
-#### Individual Component Scripts
 
 # Destroy only application (keep infrastructure)
 ./scripts/dev-deploy.sh --destroy --app-only
 
 # Show help and usage information
 ./scripts/dev-deploy.sh --help
+```
+
+#### Updating the Environment
+
+When configuration changes are made, you can update specific parts of the environment:
+
+```bash
+# Update only infrastructure (e.g., GKE cluster settings, network changes)
+# This will apply changes to the network and GKE modules.
+./scripts/dev-deploy.sh --infra-only
+
+# Update only application (e.g., N8N or PostgreSQL configuration, image tags)
+# This will apply changes to the n8n module.
+./scripts/dev-deploy.sh --app-only
 ```
 
 #### Individual Component Scripts

@@ -44,8 +44,26 @@ variable "postgres_image_tag" {
   default     = "13"
 }
 
+variable "postgres_user" {
+  description = "PostgreSQL root user"
+  type        = string
+  default     = "n8n"
+}
+
 variable "postgres_password" {
-  description = "PostgreSQL password"
+  description = "PostgreSQL root password"
+  type        = string
+  sensitive   = true
+}
+
+variable "postgres_non_root_user" {
+  description = "PostgreSQL non-root user for n8n"
+  type        = string
+  default     = "n8n"
+}
+
+variable "postgres_non_root_password" {
+  description = "PostgreSQL non-root password for n8n"
   type        = string
   sensitive   = true
 }
@@ -53,7 +71,7 @@ variable "postgres_password" {
 variable "postgres_storage_size" {
   description = "PostgreSQL storage size"
   type        = string
-  default     = "20Gi"
+  default     = "300Gi" # Updated default as per reference
 }
 
 variable "postgres_storage_class" {
@@ -62,53 +80,66 @@ variable "postgres_storage_class" {
   default     = "standard-rwo"
 }
 
+variable "n8n_storage_size" { # New variable for N8N storage
+  description = "N8N persistent volume storage size"
+  type        = string
+  default     = "2Gi" # As per reference
+}
+
+variable "n8n_storage_class" { # New variable for N8N storage class
+  description = "Storage class for N8N persistent volume"
+  type        = string
+  default     = "standard-rwo"
+}
+
 # Resource configuration
 variable "n8n_cpu_request" {
   description = "CPU request for n8n pods"
   type        = string
-  default     = "500m"
+  default     = "250m" # Updated default as per reference
 }
 
 variable "n8n_memory_request" {
   description = "Memory request for n8n pods"
   type        = string
-  default     = "512Mi"
+  default     = "250Mi" # Updated default as per reference
 }
 
 variable "n8n_cpu_limit" {
   description = "CPU limit for n8n pods"
   type        = string
-  default     = "1000m"
+  default     = "500m" # Updated default as per reference
 }
 
 variable "n8n_memory_limit" {
   description = "Memory limit for n8n pods"
   type        = string
-  default     = "1024Mi"
+  default     = "500Mi" # Updated default as per reference
 }
+
 
 variable "postgres_cpu_request" {
   description = "CPU request for PostgreSQL pods"
   type        = string
-  default     = "250m"
+  default     = "1" # Updated default as per reference
 }
 
 variable "postgres_memory_request" {
   description = "Memory request for PostgreSQL pods"
   type        = string
-  default     = "256Mi"
+  default     = "2Gi" # Updated default as per reference
 }
 
 variable "postgres_cpu_limit" {
   description = "CPU limit for PostgreSQL pods"
   type        = string
-  default     = "500m"
+  default     = "4" # Updated default as per reference
 }
 
 variable "postgres_memory_limit" {
   description = "Memory limit for PostgreSQL pods"
   type        = string
-  default     = "512Mi"
+  default     = "4Gi" # Updated default as per reference
 }
 
 # SSL and ingress configuration

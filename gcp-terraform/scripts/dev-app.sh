@@ -262,7 +262,7 @@ validate_n8n_deployment() {
     print_success "N8N namespace exists"
     
     # Check PostgreSQL deployment
-    local postgres_ready=$(kubectl get statefulset n8n-postgres -n n8n -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
+    local postgres_ready=$(kubectl get statefulset postgres -n n8n -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
     if [ "$postgres_ready" != "1" ]; then
         add_validation_error "PostgreSQL is not ready (ready replicas: $postgres_ready)"
         return 1
@@ -284,7 +284,7 @@ validate_n8n_deployment() {
     fi
     print_success "N8N service exists"
     
-    if ! kubectl get service n8n-postgres -n n8n &>/dev/null; then
+    if ! kubectl get service postgres-service -n n8n &>/dev/null; then
         add_validation_error "PostgreSQL service was not created"
         return 1
     fi
@@ -434,9 +434,8 @@ terraform plan \
 
 # Show application summary
 print_status "Application Deployment Summary:"
-echo -e "${YELLOW}  • N8N: Single replica (100m CPU, 128Mi RAM)${NC}"
-echo -e "${YELLOW}  • PostgreSQL: Single instance (50m CPU, 64Mi RAM)${NC}"
-echo -e "${YELLOW}  • Storage: 5Gi minimal storage${NC}"
+    echo -e "${YELLOW}  • N8N: Single replica (250m CPU, 250Mi RAM, 2Gi Storage)${NC}"
+    echo -e "${YELLOW}  • PostgreSQL: Single instance (1 CPU, 2Gi RAM, 300Gi Storage)${NC}"
 echo -e "${YELLOW}  • Ingress: SSL-enabled load balancer${NC}"
 echo -e "${YELLOW}  • Monitoring: Disabled${NC}"
 echo -e "${YELLOW}  • Workload Identity: Disabled${NC}"
@@ -488,9 +487,9 @@ echo ""
 print_status "Application Resource Summary:"
 echo -e "${GREEN}  • N8N Replicas: 1${NC}"
 echo -e "${GREEN}  • PostgreSQL Instances: 1${NC}"
-echo -e "${GREEN}  • Total CPU Request: ~150m${NC}"
-echo -e "${GREEN}  • Total Memory Request: ~192Mi${NC}"
-echo -e "${GREEN}  • Storage: 5Gi${NC}"
+echo -e "${GREEN}  • Total CPU Request: ~1.25 CPU${NC}"
+echo -e "${GREEN}  • Total Memory Request: ~2.25Gi${NC}"
+echo -e "${GREEN}  • Total Storage: 302Gi${NC}"
 
 echo ""
 if [ "$CERT_STATUS" != "ACTIVE" ]; then
@@ -502,7 +501,7 @@ echo ""
 echo -e "${YELLOW}Useful Commands:${NC}"
 echo -e "${YELLOW}  • Monitor deployment: kubectl get pods -n n8n -w${NC}"
 echo -e "${YELLOW}  • View N8N logs: kubectl logs -f deployment/n8n-deployment -n n8n${NC}"
-echo -e "${YELLOW}  • View PostgreSQL logs: kubectl logs -f statefulset/n8n-postgres -n n8n${NC}"
+echo -e "${YELLOW}  • View PostgreSQL logs: kubectl logs -f statefulset/postgres -n n8n${NC}"
 echo -e "${YELLOW}  • Access N8N: https://www.any-flow.com (once SSL is active)${NC}"
 
 print_success "N8N application deployment completed successfully!"

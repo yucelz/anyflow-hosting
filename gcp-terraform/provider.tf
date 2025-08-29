@@ -28,16 +28,15 @@ provider "kubernetes" {
   
   # Configure client timeouts
   exec {
-    api_version = "client.authentication.k8s.io/v1beta1"
+    api_version = "client.authentication.k8s.io/v1"
     command     = "gcloud"
     args = [
       "container",
       "clusters",
       "get-credentials",
       var.cluster_name != null ? "${var.environment}-${var.cluster_name}" : "dev-n8n-cluster",
-      "--region=${var.region}",
-      "--project=${var.project_id}",
-      "--format=json"
+      "--zone=${var.zone}",
+      "--project=${var.project_id}"
     ]
   }
 }
@@ -49,16 +48,15 @@ provider "helm" {
     
     # Configure client timeouts
     exec {
-      api_version = "client.authentication.k8s.io/v1beta1"
+      api_version = "client.authentication.k8s.io/v1"
       command     = "gcloud"
       args = [
         "container",
         "clusters", 
         "get-credentials",
         var.cluster_name != null ? "${var.environment}-${var.cluster_name}" : "dev-n8n-cluster",
-        "--region=${var.region}",
-        "--project=${var.project_id}",
-        "--format=json"
+        "--zone=${var.zone}",
+        "--project=${var.project_id}"
       ]
     }
   }

@@ -2,6 +2,101 @@
 
 This document provides solutions for common issues encountered when deploying the n8n infrastructure on GCP with Terraform.
 
+## GCloud Credentials Issues
+
+### Error: executable gcloud failed with exit code 1
+
+**Symptoms:**
+- Terraform fails with error: `Get "https://IP_ADDRESS/api/v1/namespaces/n8n": getting credentials: exec: executable gcloud failed with exit code 1`
+- Error occurs when trying to create Kubernetes resources like namespaces
+- Usually happens in the n8n module when creating the kubernetes_namespace resource
+- May also show: `exec plugin is configured to use API version client.authentication.k8s.io/v1beta1, plugin returned version client.authentication.k8s.io/__internal`
+
+**Root Causes:**
+1. **Zone/Region Mismatch**: The Kubernetes provider configuration is using the wrong gcloud command arguments for the cluster type:
+   - **Zonal clusters** require `--zone=ZONE_NAME` 
+   - **Regional clusters** require `--region=REGION_NAME`
+2. **API Version Mismatch**: The exec plugin API version is incompatible with the current gcloud version
+
+**Solution:**
+
+#### 1. Fix Provider Configuration (RECOMMENDED)
+Update the `provider.tf` file to use the correct zone/region parameter:
+
+For **zonal clusters** (like dev environment):
+```hcl
+provider "kubernetes" {
+  config_path = "~/.kube/config"
+  
+  exec {
+    api_version = "client.authentication.k8s.io/v1"  # Use v1 for compatibility
+    command     = "gcloud"
+    args = [
+      "container",
+      "clusters",
+      "get-credentials",
+      "${var.environment}-${var.cluster_name}",
+      "--zone=${var.zone}",        # Use --zone for zonal clusters
+      "--project=${var.project_id}"
+    ]
+  }
+}
+```
+
+For **regional clusters**:
+```hcl
+provider "kubernetes" {
+  config_path = "~/.kube/config"
+  
+  exec {
+    api_version = "client.authentication.k8s.io/v1"  # Use v1 for compatibility
+    command     = "gcloud"
+    args = [
+      "container",
+      "clusters",
+      "get-credentials",
+      "${var.environment}-${var.cluster_name}",
+      "--region=${var.region}",    # Use --region for regional clusters
+      "--project=${var.project_id}"
+    ]
+  }
+}
+```
+
+**Note on API Version:** If you encounter API version mismatch errors, use `client.authentication.k8s.io/v1` instead of `v1beta1` for better compatibility with newer gcloud versions.
+
+#### 2. Manual Credentials Setup
+If the provider fix doesn't work immediately, manually get credentials:
+
+```bash
+# For zonal clusters (dev environment)
+gcloud container clusters get-credentials dev-n8n-cluster --zone=us-central1-a --project=anyflow-469911
+
+# For regional clusters
+gcloud container clusters get-credentials cluster-name --region=us-central1 --project=your-project-id
+
+# Test connectivity
+kubectl cluster-info --request-timeout=30s
+```
+
+#### 3. Use the Credentials Helper Script
+Run the provided script to automatically get the correct credentials:
+
+```bash
+./scripts/get-credentials.sh dev
+```
+
+#### 4. Verify Cluster Type
+Check if your cluster is zonal or regional:
+
+```bash
+# List clusters and their types
+gcloud container clusters list --project=anyflow-469911
+
+# Describe specific cluster
+gcloud container clusters describe dev-n8n-cluster --zone=us-central1-a --project=anyflow-469911
+```
+
 ## Kubernetes Provider Timeout Issues
 
 ### Error: client rate limiter Wait returned an error: context deadline exceeded
@@ -16,6 +111,7 @@ This document provides solutions for common issues encountered when deploying th
 2. Network connectivity issues to the cluster
 3. Rate limiting on the Kubernetes API
 4. Insufficient timeout configurations in the provider
+5. Incorrect gcloud credentials configuration (see above section)
 
 **Solutions:**
 

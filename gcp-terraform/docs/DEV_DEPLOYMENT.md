@@ -74,6 +74,9 @@ The development environment now uses a modular deployment approach with three sp
 
 # Destroy complete environment
 ./scripts/dev-deploy.sh --destroy
+# OR 
+terraform destroy -auto-approve
+#### Individual Component Scripts
 
 # Destroy only application (keep infrastructure)
 ./scripts/dev-deploy.sh --destroy --app-only

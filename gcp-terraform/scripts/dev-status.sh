@@ -312,10 +312,11 @@ check_application_status() {
     # Check N8N deployment
     print_subsection "N8N Application"
     
-    if kubectl get deployment n8n -n default &>/dev/null; then
-        local n8n_ready=$(kubectl get deployment n8n -n default -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
-        local n8n_desired=$(kubectl get deployment n8n -n default -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "0")
-        local n8n_image=$(kubectl get deployment n8n -n default -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || echo "Unknown")
+    # Use 'n8n' namespace instead of 'default'
+    if kubectl get deployment n8n-deployment -n n8n &>/dev/null; then
+        local n8n_ready=$(kubectl get deployment n8n-deployment -n n8n -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
+        local n8n_desired=$(kubectl get deployment n8n-deployment -n n8n -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "0")
+        local n8n_image=$(kubectl get deployment n8n-deployment -n n8n -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || echo "Unknown")
         
         if [ "$n8n_ready" -eq "$n8n_desired" ] && [ "$n8n_desired" -gt 0 ]; then
             print_success "N8N Deployment: $n8n_ready/$n8n_desired replicas ready"
@@ -329,10 +330,10 @@ check_application_status() {
         fi
         
         # Check N8N service
-        if kubectl get service n8n -n default &>/dev/null; then
-            local service_type=$(kubectl get service n8n -n default -o jsonpath='{.spec.type}' 2>/dev/null || echo "Unknown")
-            local service_port=$(kubectl get service n8n -n default -o jsonpath='{.spec.ports[0].port}' 2>/dev/null || echo "Unknown")
-            local service_target_port=$(kubectl get service n8n -n default -o jsonpath='{.spec.ports[0].targetPort}' 2>/dev/null || echo "Unknown")
+        if kubectl get service n8n-service -n n8n &>/dev/null; then
+            local service_type=$(kubectl get service n8n-service -n n8n -o jsonpath='{.spec.type}' 2>/dev/null || echo "Unknown")
+            local service_port=$(kubectl get service n8n-service -n n8n -o jsonpath='{.spec.ports[0].port}' 2>/dev/null || echo "Unknown")
+            local service_target_port=$(kubectl get service n8n-service -n n8n -o jsonpath='{.spec.ports[0].targetPort}' 2>/dev/null || echo "Unknown")
             
             print_success "N8N Service: Available ($service_type)"
             print_status "  Port: $service_port -> $service_target_port"
@@ -345,8 +346,8 @@ check_application_status() {
         fi
         
         # Check N8N pods
-        local n8n_pods_running=$(kubectl get pods -l app=n8n -n default --no-headers 2>/dev/null | grep -c "Running" || echo "0")
-        local n8n_pods_total=$(kubectl get pods -l app=n8n -n default --no-headers 2>/dev/null | wc -l || echo "0")
+        local n8n_pods_running=$(kubectl get pods -l app=n8n,component=deployment -n n8n --no-headers 2>/dev/null | grep -c "Running" || echo "0")
+        local n8n_pods_total=$(kubectl get pods -l app=n8n,component=deployment -n n8n --no-headers 2>/dev/null | wc -l || echo "0")
         
         if [ "$n8n_pods_running" -eq "$n8n_pods_total" ] && [ "$n8n_pods_total" -gt 0 ]; then
             print_success "N8N Pods: $n8n_pods_running/$n8n_pods_total running"
@@ -364,10 +365,11 @@ check_application_status() {
     # Check PostgreSQL deployment
     print_subsection "PostgreSQL Database"
     
-    if kubectl get deployment postgresql -n default &>/dev/null; then
-        local pg_ready=$(kubectl get deployment postgresql -n default -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
-        local pg_desired=$(kubectl get deployment postgresql -n default -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "0")
-        local pg_image=$(kubectl get deployment postgresql -n default -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || echo "Unknown")
+    # Use 'n8n' namespace and correct statefulset name
+    if kubectl get statefulset n8n-postgres -n n8n &>/dev/null; then
+        local pg_ready=$(kubectl get statefulset n8n-postgres -n n8n -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
+        local pg_desired=$(kubectl get statefulset n8n-postgres -n n8n -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "0")
+        local pg_image=$(kubectl get statefulset n8n-postgres -n n8n -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || echo "Unknown")
         
         if [ "$pg_ready" -eq "$pg_desired" ] && [ "$pg_desired" -gt 0 ]; then
             print_success "PostgreSQL Deployment: $pg_ready/$pg_desired replicas ready"
@@ -381,8 +383,8 @@ check_application_status() {
         fi
         
         # Check PostgreSQL service
-        if kubectl get service postgresql -n default &>/dev/null; then
-            local pg_service_port=$(kubectl get service postgresql -n default -o jsonpath='{.spec.ports[0].port}' 2>/dev/null || echo "Unknown")
+        if kubectl get service n8n-postgres -n n8n &>/dev/null; then
+            local pg_service_port=$(kubectl get service n8n-postgres -n n8n -o jsonpath='{.spec.ports[0].port}' 2>/dev/null || echo "Unknown")
             print_success "PostgreSQL Service: Available (Port: $pg_service_port)"
             APP_DETAILS+=("PostgreSQL Service: AVAILABLE (Port: $pg_service_port)")
         else
@@ -392,8 +394,8 @@ check_application_status() {
         fi
         
         # Check PostgreSQL pods
-        local pg_pods_running=$(kubectl get pods -l app=postgresql -n default --no-headers 2>/dev/null | grep -c "Running" || echo "0")
-        local pg_pods_total=$(kubectl get pods -l app=postgresql -n default --no-headers 2>/dev/null | wc -l || echo "0")
+        local pg_pods_running=$(kubectl get pods -l app=n8n,component=database -n n8n --no-headers 2>/dev/null | grep -c "Running" || echo "0")
+        local pg_pods_total=$(kubectl get pods -l app=n8n,component=database -n n8n --no-headers 2>/dev/null | wc -l || echo "0")
         
         if [ "$pg_pods_running" -eq "$pg_pods_total" ] && [ "$pg_pods_total" -gt 0 ]; then
             print_success "PostgreSQL Pods: $pg_pods_running/$pg_pods_total running"
@@ -404,9 +406,9 @@ check_application_status() {
         fi
         
         # Check PersistentVolumeClaim
-        if kubectl get pvc postgresql-storage -n default &>/dev/null; then
-            local pvc_status=$(kubectl get pvc postgresql-storage -n default -o jsonpath='{.status.phase}' 2>/dev/null || echo "Unknown")
-            local pvc_size=$(kubectl get pvc postgresql-storage -n default -o jsonpath='{.spec.resources.requests.storage}' 2>/dev/null || echo "Unknown")
+        if kubectl get pvc data-n8n-postgres-0 -n n8n &>/dev/null; then # Correct PVC name for statefulset
+            local pvc_status=$(kubectl get pvc data-n8n-postgres-0 -n n8n -o jsonpath='{.status.phase}' 2>/dev/null || echo "Unknown")
+            local pvc_size=$(kubectl get pvc data-n8n-postgres-0 -n n8n -o jsonpath='{.spec.resources.requests.storage}' 2>/dev/null || echo "Unknown")
             
             if [ "$pvc_status" = "Bound" ]; then
                 print_success "PostgreSQL Storage: PVC bound (Size: $pvc_size)"
@@ -429,30 +431,35 @@ check_application_status() {
     # Check ingress/load balancer
     print_subsection "Network Access"
     
-    if kubectl get ingress -n default &>/dev/null 2>&1; then
-        local ingress_count=$(kubectl get ingress -n default --no-headers 2>/dev/null | wc -l || echo "0")
+    # Use 'n8n' namespace
+    if kubectl get ingress n8n-ingress -n n8n &>/dev/null; then
+        local ingress_count=$(kubectl get ingress n8n-ingress -n n8n --no-headers 2>/dev/null | wc -l || echo "0")
         if [ "$ingress_count" -gt 0 ]; then
             print_success "Ingress: $ingress_count ingress rules found"
             APP_DETAILS+=("Ingress: $ingress_count rules configured")
             
             # Show ingress details
-            kubectl get ingress -n default --no-headers 2>/dev/null | while read -r name class hosts address ports age; do
-                print_status "  Ingress: $name -> $hosts"
+            kubectl get ingress n8n-ingress -n n8n --no-headers 2>/dev/null | while read -r name class hosts address ports age; do
+                print_status "  Ingress: $name -> $hosts (IP: $address)"
             done
         else
             print_warning "Ingress: No ingress rules found"
             APP_DETAILS+=("Ingress: NONE")
         fi
+    else
+        print_fail "Ingress: n8n-ingress not found in n8n namespace"
+        APP_DETAILS+=("Ingress: NOT_FOUND")
+        app_healthy=false
     fi
     
-    # Check for LoadBalancer services
-    local lb_services=$(kubectl get services -n default --no-headers 2>/dev/null | grep -c "LoadBalancer" || echo "0")
+    # Check for LoadBalancer services (should be handled by ingress)
+    local lb_services=$(kubectl get services -n n8n --no-headers 2>/dev/null | grep -c "LoadBalancer" || echo "0")
     if [ "$lb_services" -gt 0 ]; then
-        print_success "Load Balancer Services: $lb_services found"
-        APP_DETAILS+=("Load Balancer: $lb_services services")
+        print_warning "Load Balancer Services: $lb_services found (Ingress should be handling external access)"
+        APP_DETAILS+=("Load Balancer: $lb_services services (unexpected for N8N)")
     else
-        print_status "Load Balancer Services: None found"
-        APP_DETAILS+=("Load Balancer: NONE")
+        print_status "Load Balancer Services: None found (expected for N8N with Ingress)"
+        APP_DETAILS+=("Load Balancer: NONE (expected)")
     fi
 
     # Output connection details
@@ -467,12 +474,15 @@ check_application_status() {
     local DOMAIN_NAME=$(kubectl get ingress n8n-ingress -n n8n -o jsonpath='{.spec.rules[0].host}' 2>/dev/null || echo "N/A")
     local EXTERNAL_IP=$(kubectl get ingress n8n-ingress -n n8n -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "N/A")
     local INGRESS_PORT="443 (HTTPS)" # Assuming HTTPS for N8N ingress
+    local SSL_CERT_NAME="${ENVIRONMENT}-n8n-cluster-n8n-ssl-cert"
+    local SSL_STATUS=$(gcloud compute ssl-certificates describe "$SSL_CERT_NAME" --global --project="$PROJECT_ID" --format="value(managed.status)" 2>/dev/null || echo "N/A")
 
     print_status "N8N Endpoint URL: https://$DOMAIN_NAME"
     print_status "N8N Basic Auth User: $N8N_USER"
     print_status "N8N Basic Auth Password: $N8N_PASSWORD"
     print_status "N8N External IP: $EXTERNAL_IP"
     print_status "N8N Ingress Port: $INGRESS_PORT"
+    print_status "SSL Certificate Status: $SSL_STATUS"
     print_status "PostgreSQL Host: $POSTGRES_HOST"
     print_status "PostgreSQL Port: $POSTGRES_PORT"
     print_status "PostgreSQL User: $POSTGRES_USER"
@@ -483,6 +493,7 @@ check_application_status() {
     APP_DETAILS+=("N8N Password: $N8N_PASSWORD")
     APP_DETAILS+=("N8N External IP: $EXTERNAL_IP")
     APP_DETAILS+=("N8N Ingress Port: $INGRESS_PORT")
+    APP_DETAILS+=("SSL Certificate Status: $SSL_STATUS")
     APP_DETAILS+=("PostgreSQL Host: $POSTGRES_HOST")
     APP_DETAILS+=("PostgreSQL Port: $POSTGRES_PORT")
     APP_DETAILS+=("PostgreSQL User: $POSTGRES_USER")

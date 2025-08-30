@@ -24,8 +24,8 @@ environment = "dev"  # Options: dev, staging, prod
 # =============================================================================
 
 # GCP region and zone
-region = "us-central1"
-zone   = "us-central1-a"
+region = "us-west-1"
+zone   = "us-west1-a"
 
 # Alternative regions for better latency:
 # region = "europe-west1"     # Belgium
@@ -155,7 +155,7 @@ backup_retention_days  = 7
 # REGIONAL EXAMPLES
 # =============================================================================
 
-# US East (cheaper than us-central1):
+# US East (cheaper than us-west-1):
 # region = "us-east1" 
 # zone   = "us-east1-b"
 

@@ -6,12 +6,12 @@ set -e
 # Check for project_id argument
 if [ -z "$1" ]; then
   echo "Usage: $0 <PROJECT_ID> [REGION]"
-  echo "REGION is optional and defaults to us-central1"
+  echo "REGION is optional and defaults to us-west-1"
   exit 1
 fi
 
 PROJECT_ID="$1"
-REGION="${2:-us-central1}"
+REGION="${2:-us-west-1}"
 echo "Deleting all resources in project: $PROJECT_ID"
 echo "Using region: $REGION for regional resources"
 gcloud config set project "$PROJECT_ID"

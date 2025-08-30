@@ -18,8 +18,8 @@ NC='\033[0m' # No Color
 
 # Configuration based on environment
 PROJECT_ID="anyflow-469911"
-REGION="us-central1"
-ZONE="us-central1-a"
+REGION="us-west-1"
+ZONE="us-west1-a"
 CLUSTER_NAME="${ENVIRONMENT}-n8n-cluster"
 
 # Function to print status

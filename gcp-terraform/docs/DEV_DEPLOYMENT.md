@@ -17,7 +17,7 @@ The dev deployment is a cost-optimized, minimal resource configuration that prov
 
 | Component | Configuration | Resource Allocation |
 |-----------|---------------|-------------------|
-| **GKE Cluster** | Zonal (single zone) | us-central1-a |
+| **GKE Cluster** | Zonal (single zone) | us-west1-a |
 | **Node Pool** | 1-2 nodes max | e2-medium (2 vCPU, 4GB RAM) |
 | **N8N Application** | Single replica | 100m CPU, 128Mi RAM |
 | **PostgreSQL** | Single instance | 50m CPU, 64Mi RAM |
@@ -209,7 +209,7 @@ After deployment, verify the state of the infrastructure and ensure everything i
 
 1.  **Get Cluster Credentials**
     ```bash
-    gcloud container clusters get-credentials dev-n8n-cluster --region=us-central1 --project=anyflow-469911
+    gcloud container clusters get-credentials dev-n8n-cluster --region=us-west-1 --project=anyflow-469911
     ```
 
 2.  **Show Current State**
@@ -236,7 +236,7 @@ After deployment, verify the state of the infrastructure and ensure everything i
 
 ### Kubernetes Cluster
 - **Type**: Zonal cluster (single zone for cost optimization)
-- **Location**: us-central1-a
+- **Location**: us-west1-a
 - **Node Pool**: 1-2 nodes maximum
 - **Machine Type**: e2-medium (2 vCPU, 4GB RAM, preemptible)
 - **Disk**: 20GB standard persistent disk per node
@@ -336,7 +336,7 @@ If you need to scale beyond dev limits:
 ### Cost Reduction Tips
 1. **Use Preemptible Nodes**: Already enabled (up to 80% savings)
 2. **Minimize Storage**: 5Gi is already minimal
-3. **Regional Considerations**: us-central1 is typically cheapest
+3. **Regional Considerations**: us-west-1 is typically cheapest
 4. **Cleanup Unused Resources**: Regular cleanup of old deployments
 
 ## Troubleshooting
@@ -357,7 +357,7 @@ If you need to scale beyond dev limits:
    ```bash
    # Disable deletion protection
    gcloud container clusters update dev-n8n-cluster \
-     --zone=us-central1-a \
+     --zone=us-west1-a \
      --project=anyflow-469911 \
      --no-deletion-protection
    
@@ -414,7 +414,7 @@ If you need to scale beyond dev limits:
 
 3. **Scale Node Pool**
    ```bash
-   gcloud container clusters resize dev-n8n-cluster --num-nodes=2 --region=us-central1
+   gcloud container clusters resize dev-n8n-cluster --num-nodes=2 --region=us-west-1
    ```
 
 ## Security Considerations

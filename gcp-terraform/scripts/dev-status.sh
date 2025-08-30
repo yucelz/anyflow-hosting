@@ -366,10 +366,10 @@ check_application_status() {
     print_subsection "PostgreSQL Database"
     
     # Use 'n8n' namespace and correct statefulset name
-    if kubectl get statefulset n8n-postgres -n n8n &>/dev/null; then
-        local pg_ready=$(kubectl get statefulset n8n-postgres -n n8n -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
-        local pg_desired=$(kubectl get statefulset n8n-postgres -n n8n -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "0")
-        local pg_image=$(kubectl get statefulset n8n-postgres -n n8n -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || echo "Unknown")
+    if kubectl get statefulset postgres -n n8n &>/dev/null; then
+        local pg_ready=$(kubectl get statefulset postgres -n n8n -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
+        local pg_desired=$(kubectl get statefulset postgres -n n8n -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "0")
+        local pg_image=$(kubectl get statefulset postgres -n n8n -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || echo "Unknown")
         
         if [ "$pg_ready" -eq "$pg_desired" ] && [ "$pg_desired" -gt 0 ]; then
             print_success "PostgreSQL Deployment: $pg_ready/$pg_desired replicas ready"
@@ -383,8 +383,8 @@ check_application_status() {
         fi
         
         # Check PostgreSQL service
-        if kubectl get service n8n-postgres -n n8n &>/dev/null; then
-            local pg_service_port=$(kubectl get service n8n-postgres -n n8n -o jsonpath='{.spec.ports[0].port}' 2>/dev/null || echo "Unknown")
+        if kubectl get service postgres-service -n n8n &>/dev/null; then
+            local pg_service_port=$(kubectl get service postgres-service -n n8n -o jsonpath='{.spec.ports[0].port}' 2>/dev/null || echo "Unknown")
             print_success "PostgreSQL Service: Available (Port: $pg_service_port)"
             APP_DETAILS+=("PostgreSQL Service: AVAILABLE (Port: $pg_service_port)")
         else
@@ -406,9 +406,9 @@ check_application_status() {
         fi
         
         # Check PersistentVolumeClaim
-        if kubectl get pvc data-n8n-postgres-0 -n n8n &>/dev/null; then # Correct PVC name for statefulset
-            local pvc_status=$(kubectl get pvc data-n8n-postgres-0 -n n8n -o jsonpath='{.status.phase}' 2>/dev/null || echo "Unknown")
-            local pvc_size=$(kubectl get pvc data-n8n-postgres-0 -n n8n -o jsonpath='{.spec.resources.requests.storage}' 2>/dev/null || echo "Unknown")
+        if kubectl get pvc postgresql-pv-postgres-0 -n n8n &>/dev/null; then # Correct PVC name for statefulset
+            local pvc_status=$(kubectl get pvc postgresql-pv-postgres-0 -n n8n -o jsonpath='{.status.phase}' 2>/dev/null || echo "Unknown")
+            local pvc_size=$(kubectl get pvc postgresql-pv-postgres-0 -n n8n -o jsonpath='{.spec.resources.requests.storage}' 2>/dev/null || echo "Unknown")
             
             if [ "$pvc_status" = "Bound" ]; then
                 print_success "PostgreSQL Storage: PVC bound (Size: $pvc_size)"
@@ -453,7 +453,7 @@ check_application_status() {
     fi
     
     # Check for LoadBalancer services (should be handled by ingress)
-    local lb_services=$(kubectl get services -n n8n --no-headers 2>/dev/null | grep -c "LoadBalancer" || echo "0")
+    local lb_services=$(kubectl get services -n n8n --no-headers 2>/dev/null | grep -c "LoadBalancer" 2>/dev/null || echo "0")
     if [ "$lb_services" -gt 0 ]; then
         print_warning "Load Balancer Services: $lb_services found (Ingress should be handling external access)"
         APP_DETAILS+=("Load Balancer: $lb_services services (unexpected for N8N)")

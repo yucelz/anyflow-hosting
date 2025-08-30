@@ -118,10 +118,18 @@ When configuration changes are made, you can update specific parts of the enviro
 ./scripts/dev-app-test.sh --help      # Show help
 
 # Environment status check
-./scripts/dev-status.sh               # Check status of all components
-./scripts/dev-status.sh --infra       # Check only infrastructure status
-./scripts/dev-status.sh --app         # Check only application status
-./scripts/dev-status.sh --help        # Show help
+# Check only application status
+./scripts/dev-status.sh --app
+
+# Check only infrastructure status  
+./scripts/dev-status.sh --infra
+
+# Check everything (default)
+./scripts/dev-status.sh
+./scripts/dev-status.sh --all
+
+# Show help
+./scripts/dev-status.sh --help
 ```
 
 #### Modular Deployment Benefits

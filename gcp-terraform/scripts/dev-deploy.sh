@@ -157,6 +157,33 @@ else
     elif [ "$APP_ONLY" = true ]; then
         print_section "APPLICATION DEPLOYMENT ONLY"
         print_status "Deploying application using dev-app.sh..."
+        
+        # Check for potential Terraform state drift issues before deployment
+        print_status "Checking for Terraform state drift issues..."
+        cd "$(dirname "$0")/.."
+        
+        # Check if cluster endpoint has changed (common cause of state drift)
+        if terraform state list | grep -q "module.n8n" && ! kubectl cluster-info &>/dev/null; then
+            print_warning "Detected potential state drift - kubectl cannot connect to cluster"
+            print_status "Attempting to fix state drift by cleaning up orphaned Kubernetes resources..."
+            
+            # Remove Kubernetes resources that might be pointing to old cluster endpoint
+            terraform state rm module.n8n.kubernetes_secret.n8n_secrets 2>/dev/null || true
+            terraform state rm module.n8n.kubernetes_secret.postgres_secret 2>/dev/null || true
+            terraform state rm module.n8n.kubernetes_config_map.postgres_init_data 2>/dev/null || true
+            terraform state rm module.n8n.kubernetes_persistent_volume_claim.n8n_claim0 2>/dev/null || true
+            terraform state rm module.n8n.kubernetes_service.postgres 2>/dev/null || true
+            terraform state rm module.n8n.kubernetes_service.n8n 2>/dev/null || true
+            terraform state rm module.n8n.kubernetes_manifest.backend_config 2>/dev/null || true
+            terraform state rm module.n8n.kubernetes_namespace.n8n 2>/dev/null || true
+            terraform state rm module.n8n.kubernetes_stateful_set.postgres 2>/dev/null || true
+            terraform state rm module.n8n.kubernetes_deployment.n8n 2>/dev/null || true
+            terraform state rm module.n8n.kubernetes_ingress_v1.n8n_ingress 2>/dev/null || true
+            
+            print_status "State cleanup completed - resources will be recreated"
+        fi
+        
+        cd "$SCRIPT_DIR"
         "$SCRIPT_DIR/dev-app.sh"
         
     else

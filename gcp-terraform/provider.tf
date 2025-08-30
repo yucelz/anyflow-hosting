@@ -22,9 +22,7 @@ provider "kubernetes" {
   ]
   
   # Add timeout configurations to prevent rate limiter issues
-  experiments {
-    manifest_resource = true
-  }
+  # Note: manifest_resource is now permanently enabled and no longer needed
   
   # Configure client timeouts
   exec {

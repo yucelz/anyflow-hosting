@@ -1,5 +1,6 @@
 # Terraform files
 *.tfstate
+*.tfplan
 *.tfstate.*
 *.tfvars
 !*.tfvars.example

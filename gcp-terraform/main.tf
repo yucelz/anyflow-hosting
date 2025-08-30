@@ -103,7 +103,7 @@ resource "time_sleep" "wait_for_cluster" {
 data "google_container_cluster" "cluster" {
   name       = local.name_prefix
   location   = var.max_node_count <= 2 ? var.zone : var.region  # Match GKE module logic
-  depends_on = [time_sleep.wait_for_cluster]
+  depends_on = [time_sleep.wait_for_cluster, module.gke]
 }
 
 # Local exec to get credentials

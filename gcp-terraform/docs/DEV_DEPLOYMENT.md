@@ -166,33 +166,71 @@ When configuration changes are made, you can update specific parts of the enviro
 
 ### Manual Deployment
 
-1. **Initialize Terraform**
-   ```bash
-   cd gcp-terraform
-   terraform init
-   ```
+#### Terraform Pre-Deployment Checks
 
-2. **Create/Select Workspace**
-   ```bash
-   terraform workspace new dev
-   # or
-   terraform workspace select dev
-   ```
+Before applying any changes, it's crucial to perform checks to ensure the configuration is valid and to understand the proposed changes.
 
-3. **Plan Deployment**
-   ```bash
-   terraform plan -var-file="environments/dev/terraform.tfvars" -out="terraform-dev.tfplan"
-   ```
+1.  **Initialize Terraform**
+    ```bash
+    cd gcp-terraform
+    terraform init
+    ```
 
-4. **Apply Configuration**
-   ```bash
-   terraform apply "terraform-dev.tfplan"
-   ```
+2.  **Create/Select Workspace**
+    ```bash
+    terraform workspace new dev
+    # or
+    terraform workspace select dev
+    ```
 
-5. **Get Cluster Credentials**
-   ```bash
-   gcloud container clusters get-credentials dev-n8n-cluster --region=us-central1 --project=anyflow-469911
-   ```
+3.  **Validate Configuration**
+    ```bash
+    terraform validate
+    ```
+    This command checks the configuration files in the current directory for syntax errors and internal consistency.
+
+4.  **Plan Deployment**
+    ```bash
+    terraform plan -var-file="environments/dev/terraform.tfvars" -out="terraform-dev.tfplan"
+    ```
+    This command creates an execution plan, showing what actions Terraform will take to achieve the desired state. Review this plan carefully before proceeding.
+
+#### Terraform Deployment
+
+1.  **Apply Configuration**
+    ```bash
+    terraform apply "terraform-dev.tfplan"
+    ```
+    This command applies the planned changes to create or update the infrastructure.
+
+#### Terraform Post-Deployment Checks
+
+After deployment, verify the state of the infrastructure and ensure everything is running as expected.
+
+1.  **Get Cluster Credentials**
+    ```bash
+    gcloud container clusters get-credentials dev-n8n-cluster --region=us-central1 --project=anyflow-469911
+    ```
+
+2.  **Show Current State**
+    ```bash
+    terraform show
+    ```
+    This command displays the current state of the managed infrastructure.
+
+3.  **Check Specific Outputs**
+    ```bash
+    terraform output
+    # To get a specific output, e.g., the GKE cluster name
+    terraform output gke_cluster_name
+    ```
+    This command shows the output values defined in the `outputs.tf` file.
+
+4.  **Run Environment Status Check**
+    ```bash
+    ./scripts/dev-status.sh --all
+    ```
+    This script provides a comprehensive overview of both infrastructure and application components.
 
 ## Resource Limits and Constraints
 

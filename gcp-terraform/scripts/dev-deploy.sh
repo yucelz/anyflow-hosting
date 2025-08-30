@@ -148,6 +148,11 @@ else
     echo -e "${BLUE}    N8N Dev Environment Deployment     ${NC}"
     echo -e "${BLUE}      Orchestrated Deployment         ${NC}"
     echo -e "${BLUE}========================================${NC}"
+
+    # Activate necessary GCP services before any deployment
+    print_section "ACTIVATING GCP SERVICES"
+    print_status "Ensuring all required GCP services are enabled..."
+    "$SCRIPT_DIR/activate_gcp_services.sh"
     
     if [ "$INFRA_ONLY" = true ]; then
         print_section "INFRASTRUCTURE DEPLOYMENT ONLY"

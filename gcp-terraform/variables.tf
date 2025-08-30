@@ -22,13 +22,13 @@ variable "environment" {
 variable "region" {
   description = "The GCP region"
   type        = string
-  default     = "us-west-1"
+  default     = "us-central1"
 }
 
 variable "zone" {
   description = "The GCP zone"
   type        = string
-  default     = "us-west1-a"
+  default     = "us-central1-b"
 }
 
 # Network Configuration

@@ -70,10 +70,10 @@ If the provider fix doesn't work immediately, manually get credentials:
 
 ```bash
 # For zonal clusters (dev environment)
-gcloud container clusters get-credentials dev-n8n-cluster --zone=us-west1-a --project=anyflow-469911
+gcloud container clusters get-credentials dev-n8n-cluster --zone=us-central1-b --project=anyflow-469911
 
 # For regional clusters
-gcloud container clusters get-credentials cluster-name --region=us-west-1 --project=your-project-id
+gcloud container clusters get-credentials cluster-name --region=us-central1 --project=your-project-id
 
 # Test connectivity
 kubectl cluster-info --request-timeout=30s
@@ -94,7 +94,7 @@ Check if your cluster is zonal or regional:
 gcloud container clusters list --project=anyflow-469911
 
 # Describe specific cluster
-gcloud container clusters describe dev-n8n-cluster --zone=us-west1-a --project=anyflow-469911
+gcloud container clusters describe dev-n8n-cluster --zone=us-central1-b --project=anyflow-469911
 ```
 
 ## Kubernetes Provider Timeout Issues
@@ -166,7 +166,7 @@ If the error persists, try these manual steps:
 
 ```bash
 # 1. Refresh cluster credentials
-gcloud container clusters get-credentials dev-n8n-cluster --region=us-west-1 --project=your-project-id
+gcloud container clusters get-credentials dev-n8n-cluster --region=us-central1 --project=your-project-id
 
 # 2. Test cluster connectivity
 kubectl cluster-info --request-timeout=30s
@@ -224,7 +224,7 @@ n8n_storage_class = "standard"
 
 1. **Check GKE cluster status:**
 ```bash
-gcloud container clusters describe dev-n8n-cluster --region=us-west-1
+gcloud container clusters describe dev-n8n-cluster --region=us-central1
 ```
 
 2. **Verify authorized networks:**

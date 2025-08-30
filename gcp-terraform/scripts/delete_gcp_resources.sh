@@ -104,7 +104,21 @@ gcloud compute firewall-rules list --project="$PROJECT_ID" --format="value(name)
   fi
 done
 
-### Step 10: Delete VPC Subnets (except default ones)
+### Step 10: Delete Cloud Routers (must be done before subnets and VPCs)
+echo "Deleting Cloud Routers..."
+# First delete the specific dev-n8n-cluster-n8n-vpc-router
+echo "  Deleting router: dev-n8n-cluster-n8n-vpc-router in region: $REGION"
+gcloud compute routers delete "dev-n8n-cluster-n8n-vpc-router" --region="$REGION" --quiet || true
+
+# Then delete any other custom routers
+gcloud compute routers list --project="$PROJECT_ID" --format="value(name,region)" | while read -r name region; do
+  if [ ! -z "$name" ]; then
+    echo "  Deleting router: $name in region: $region"
+    gcloud compute routers delete "$name" --region="$region" --quiet || true
+  fi
+done
+
+### Step 11: Delete VPC Subnets (except default ones)
 echo "Deleting custom VPC Subnets..."
 gcloud compute networks subnets list --project="$PROJECT_ID" --format="value(name,region)" | while read -r name region; do
   if [ ! -z "$name" ] && [[ ! "$name" =~ ^default$ ]]; then
@@ -113,7 +127,7 @@ gcloud compute networks subnets list --project="$PROJECT_ID" --format="value(nam
   fi
 done
 
-### Step 11: Delete VPC Networks (except default)
+### Step 12: Delete VPC Networks (except default)
 echo "Deleting custom VPC Networks..."
 gcloud compute networks list --project="$PROJECT_ID" --format="value(name)" | while read -r name; do
   if [ ! -z "$name" ] && [ "$name" != "default" ]; then
@@ -122,7 +136,7 @@ gcloud compute networks list --project="$PROJECT_ID" --format="value(name)" | wh
   fi
 done
 
-### Step 12: Delete Service Accounts (except default ones)
+### Step 13: Delete Service Accounts (except default ones)
 echo "Deleting custom Service Accounts..."
 gcloud iam service-accounts list --project="$PROJECT_ID" --format="value(email)" | while read -r email; do
   if [ ! -z "$email" ] && [[ ! "$email" =~ .*@.*\.iam\.gserviceaccount\.com$ ]] || [[ "$email" =~ ^[^@]*@$PROJECT_ID\.iam\.gserviceaccount\.com$ ]]; then

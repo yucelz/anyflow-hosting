@@ -80,6 +80,9 @@ terraform destroy -auto-approve
 # Destroy only application (keep infrastructure)
 ./scripts/dev-deploy.sh --destroy --app-only
 
+# Destroy only infrastructure (Network + GKE)
+./scripts/dev-deploy.sh --destroy --infra-only
+
 # Show help and usage information
 ./scripts/dev-deploy.sh --help
 ```

@@ -236,6 +236,18 @@ variable "postgres_storage_class" {
   default     = "standard-rwo"
 }
 
+variable "n8n_storage_size" {
+  description = "N8N persistent volume storage size"
+  type        = string
+  default     = "2Gi"
+}
+
+variable "n8n_storage_class" {
+  description = "Storage class for N8N persistent volume"
+  type        = string
+  default     = "standard-rwo"
+}
+
 variable "postgres_cpu_request" {
   description = "CPU request for PostgreSQL pods"
   type        = string

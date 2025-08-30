@@ -434,11 +434,11 @@ terraform plan \
 
 # Show application summary
 print_status "Application Deployment Summary:"
-    echo -e "${YELLOW}  • N8N: Single replica (250m CPU, 250Mi RAM, 2Gi Storage)${NC}"
-    echo -e "${YELLOW}  • PostgreSQL: Single instance (1 CPU, 2Gi RAM, 300Gi Storage)${NC}"
+    echo -e "${YELLOW}  • N8N: Single replica (500m CPU, 512Mi RAM, 2Gi Storage)${NC}"
+    echo -e "${YELLOW}  • PostgreSQL: Single instance (250m CPU, 1Gi RAM, 10Gi Storage)${NC}"
 echo -e "${YELLOW}  • Ingress: SSL-enabled load balancer${NC}"
-echo -e "${YELLOW}  • Monitoring: Disabled${NC}"
-echo -e "${YELLOW}  • Workload Identity: Disabled${NC}"
+echo -e "${YELLOW}  • Monitoring: Enabled${NC}"
+echo -e "${YELLOW}  • Workload Identity: Enabled${NC}"
 
 # Ask for confirmation for application
 echo ""
@@ -489,7 +489,7 @@ echo -e "${GREEN}  • N8N Replicas: 1${NC}"
 echo -e "${GREEN}  • PostgreSQL Instances: 1${NC}"
 echo -e "${GREEN}  • Total CPU Request: ~1.25 CPU${NC}"
 echo -e "${GREEN}  • Total Memory Request: ~2.25Gi${NC}"
-echo -e "${GREEN}  • Total Storage: 302Gi${NC}"
+echo -e "${GREEN}  • Total Storage: 12Gi${NC}"
 
 echo ""
 if [ "$CERT_STATUS" != "ACTIVE" ]; then

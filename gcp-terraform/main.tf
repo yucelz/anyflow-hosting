@@ -156,6 +156,10 @@ module "n8n" {
   postgres_storage_size      = var.postgres_storage_size
   postgres_storage_class     = var.postgres_storage_class
   
+  # N8N storage configuration
+  n8n_storage_size           = var.n8n_storage_size
+  n8n_storage_class          = var.n8n_storage_class
+  
   # Resource limits
   n8n_cpu_request       = var.n8n_cpu_request
   n8n_memory_request    = var.n8n_memory_request

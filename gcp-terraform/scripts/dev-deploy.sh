@@ -184,7 +184,7 @@ else
         fi
         
         cd "$SCRIPT_DIR"
-        "$SCRIPT_DIR/dev-app.sh"
+        ./dev-app.sh
         
     else
         print_section "COMPLETE ENVIRONMENT DEPLOYMENT"

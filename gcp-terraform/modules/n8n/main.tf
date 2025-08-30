@@ -113,9 +113,9 @@ resource "kubernetes_persistent_volume_claim" "n8n_claim0" {
     storage_class_name = var.n8n_storage_class # New variable for N8N storage class
   }
 
-  # Add timeouts to handle rate limiting issues
+  # Extended timeouts to handle rate limiting issues
   timeouts {
-    create = "10m"
+    create = "15m"
   }
 
   # Wait for namespace to be fully ready

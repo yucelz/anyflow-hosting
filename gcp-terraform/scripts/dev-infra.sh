@@ -555,7 +555,6 @@ if [ "$DESTROY_MODE" = true ]; then
     if terraform destroy \
         -target="google_project_service.required_apis" \
         -target="random_password.postgres_password" \
-        -target="random_password.n8n_basic_auth_password" \
         -target="random_password.n8n_encryption_key" \
         -target="time_sleep.wait_for_cluster" \
         -target="data.google_container_cluster.cluster" \
@@ -585,7 +584,6 @@ terraform plan \
     -target="module.gke" \
     -target="google_project_service.required_apis" \
     -target="random_password.postgres_password" \
-    -target="random_password.n8n_basic_auth_password" \
     -target="random_password.n8n_encryption_key" \
     -target="time_sleep.wait_for_cluster" \
     -target="data.google_container_cluster.cluster" \

@@ -11,24 +11,14 @@ locals {
   }
 }
 
-# Generate random passwords
+# Generate random passwords (keeping only necessary ones)
 resource "random_password" "postgres_password" {
-  length  = 16
-  special = true
-}
-
-resource "random_password" "n8n_basic_auth_password" {
   length  = 16
   special = true
 }
 
 resource "random_password" "n8n_encryption_key" {
   length  = 32
-  special = true
-}
-
-resource "random_password" "postgres_non_root_password" {
-  length  = 16
   special = true
 }
 
@@ -155,14 +145,14 @@ module "n8n" {
   
   # Authentication
   n8n_basic_auth_user     = var.n8n_basic_auth_user
-  n8n_basic_auth_password = random_password.n8n_basic_auth_password.result
+  n8n_basic_auth_password = var.n8n_basic_auth_password
   n8n_encryption_key      = random_password.n8n_encryption_key.result
   
   # Database configuration
   postgres_image_tag         = var.postgres_image_tag
   postgres_password          = random_password.postgres_password.result
   postgres_non_root_user     = var.postgres_non_root_user
-  postgres_non_root_password = random_password.postgres_non_root_password.result
+  postgres_non_root_password = var.postgres_non_root_password
   postgres_storage_size      = var.postgres_storage_size
   postgres_storage_class     = var.postgres_storage_class
   

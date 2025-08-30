@@ -60,7 +60,7 @@ output "n8n_basic_auth_user" {
 
 output "n8n_basic_auth_password" {
   description = "Basic auth password for N8N"
-  value       = random_password.n8n_basic_auth_password.result
+  value       = var.n8n_basic_auth_password
   sensitive   = true
 }
 

@@ -180,6 +180,12 @@ variable "n8n_basic_auth_user" {
   default     = "admin"
 }
 
+variable "n8n_basic_auth_password" {
+  description = "Basic auth password for n8n"
+  type        = string
+  sensitive   = true
+}
+
 variable "enable_n8n_metrics" {
   description = "Enable n8n metrics collection"
   type        = bool

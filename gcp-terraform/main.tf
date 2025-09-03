@@ -77,6 +77,7 @@ module "gke" {
   disk_size_gb           = var.disk_size_gb
   disk_type              = var.disk_type
   preemptible_nodes      = var.preemptible_nodes
+  spot_nodes             = var.spot_nodes
   
   # Security
   enable_network_policy      = var.enable_network_policy

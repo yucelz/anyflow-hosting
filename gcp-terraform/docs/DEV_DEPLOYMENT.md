@@ -17,7 +17,7 @@ The dev deployment is a cost-optimized, minimal resource configuration that prov
 
 | Component | Configuration | Resource Allocation |
 |-----------|---------------|-------------------|
-| **GKE Cluster** | Zonal (single zone) | us-central1-b |
+| **GKE Cluster** | Regional (multiple zones) | us-west-1 |
 | **Node Pool** | 1-2 nodes max | e2-medium (2 vCPU, 4GB RAM) |
 | **N8N Application** | Single replica | 100m CPU, 128Mi RAM |
 | **PostgreSQL** | Single instance | 50m CPU, 64Mi RAM |
@@ -28,8 +28,8 @@ The dev deployment is a cost-optimized, minimal resource configuration that prov
 
 | Feature | Production Environment | Dev Environment |
 |---------|----------------------|-----------------|
-| Cluster Type | Regional (3 zones) | Zonal (1 zone) |
-| Max Nodes | 5+ | 2 |
+| Cluster Type | Regional (spans multiple zones automatically) | Regional (spans multiple zones automatically) |
+| Max Nodes | 5+ | 3 |
 | Machine Type | e2-standard-2 | e2-medium |
 | N8N CPU | 500m request, 1000m limit | 100m request, 200m limit |
 | N8N Memory | 512Mi request, 1Gi limit | 128Mi request, 256Mi limit |
@@ -48,7 +48,7 @@ The dev deployment is a cost-optimized, minimal resource configuration that prov
 1. **GCP Project Setup**
    ```bash
    gcloud auth login
-   gcloud config set project anyflow-469911
+   gcloud config set project anyflow-dev
    ```
 
 2. **Required APIs** (automatically enabled by script)
@@ -209,7 +209,7 @@ After deployment, verify the state of the infrastructure and ensure everything i
 
 1.  **Get Cluster Credentials**
     ```bash
-    gcloud container clusters get-credentials dev-n8n-cluster --region=us-central1 --project=anyflow-469911
+    gcloud container clusters get-credentials dev-n8n-cluster --region=us-west-1 --project=anyflow-dev
     ```
 
 2.  **Show Current State**
@@ -235,9 +235,9 @@ After deployment, verify the state of the infrastructure and ensure everything i
 ## Resource Limits and Constraints
 
 ### Kubernetes Cluster
-- **Type**: Zonal cluster (single zone for cost optimization)
-- **Location**: us-central1-b
-- **Node Pool**: 1-2 nodes maximum
+- **Type**: Regional cluster (multiple zones for availability)
+- **Location**: us-west-1
+- **Node Pool**: 1-3 nodes maximum
 - **Machine Type**: e2-medium (2 vCPU, 4GB RAM, preemptible)
 - **Disk**: 20GB standard persistent disk per node
 
@@ -266,7 +266,7 @@ After deployment, verify the state of the infrastructure and ensure everything i
 ### Scalability
 - **No Horizontal Pod Autoscaling**: N8N runs as single replica
 - **No Pod Disruption Budget**: Single pod means no disruption protection
-- **No Multi-Zone Redundancy**: Single zone deployment
+- **Multi-Zone Redundancy**: Regional cluster spans multiple zones for availability
 
 ### Features Disabled
 - **Monitoring**: Prometheus metrics disabled
@@ -358,7 +358,7 @@ If you need to scale beyond dev limits:
    # Disable deletion protection
    gcloud container clusters update dev-n8n-cluster \
      --zone=us-central1-b \
-     --project=anyflow-469911 \
+     --project=anyflow-dev \
      --no-deletion-protection
    
    # Then retry destroy

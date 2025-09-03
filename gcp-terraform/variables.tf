@@ -112,7 +112,7 @@ variable "machine_type" {
 variable "disk_size_gb" {
   description = "Disk size in GB for cluster nodes"
   type        = number
-  default     = 50
+  default     = 20
   validation {
     condition     = var.disk_size_gb >= 20 && var.disk_size_gb <= 500
     error_message = "Disk size must be between 20 and 500 GB."

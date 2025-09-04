@@ -48,7 +48,7 @@ The dev deployment is a cost-optimized, minimal resource configuration that prov
 1. **GCP Project Setup**
    ```bash
    gcloud auth login
-   gcloud config set project anyflow-dev
+   gcloud config set project anyflow-cloud
    ```
 
 2. **Required APIs** (automatically enabled by script)
@@ -209,7 +209,7 @@ After deployment, verify the state of the infrastructure and ensure everything i
 
 1.  **Get Cluster Credentials**
     ```bash
-    gcloud container clusters get-credentials dev-n8n-cluster --region=us-west-1 --project=anyflow-dev
+    gcloud container clusters get-credentials dev-n8n-cluster --region=us-west-1 --project=anyflow-cloud
     ```
 
 2.  **Show Current State**
@@ -358,7 +358,7 @@ If you need to scale beyond dev limits:
    # Disable deletion protection
    gcloud container clusters update dev-n8n-cluster \
      --zone=us-central1-b \
-     --project=anyflow-dev \
+     --project=anyflow-cloud \
      --no-deletion-protection
    
    # Then retry destroy

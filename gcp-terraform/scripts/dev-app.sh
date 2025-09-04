@@ -59,7 +59,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 ENVIRONMENT="dev"
-PROJECT_ID="anyflow-dev"
+PROJECT_ID="anyflow-cloud"
 REGION="us-central1"
 ZONE="us-central1-b"
 CLUSTER_NAME="${ENVIRONMENT}-n8n-cluster"

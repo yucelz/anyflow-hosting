@@ -86,17 +86,6 @@ variable "disk_type" {
   default     = "pd-standard"
 }
 
-variable "preemptible_nodes" {
-  description = "Whether to use preemptible nodes (deprecated, use spot_nodes instead)"
-  type        = bool
-  default     = false
-}
-
-variable "spot_nodes" {
-  description = "Whether to use Spot VMs (recommended over preemptible nodes)"
-  type        = bool
-  default     = false
-}
 
 # Security configuration
 variable "enable_network_policy" {
@@ -132,8 +121,14 @@ variable "authorized_networks" {
   default = []
 }
 
+variable "spot_nodes" {
+  description = "Whether to use Spot VMs for the node pool"
+  type        = bool
+  default     = false
+}
+
 variable "node_locations" {
-  description = "List of zones for regional cluster nodes"
+  description = "List of zones in which the GKE node pool will be created. If null, GKE will choose zones."
   type        = list(string)
   default     = null
 }

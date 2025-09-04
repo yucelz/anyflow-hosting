@@ -120,11 +120,6 @@ output "environment" {
   value       = var.environment
 }
 
-# Service Account Information (if workload identity is enabled)
-output "workload_identity_service_account" {
-  description = "Service account for workload identity"
-  value       = var.enable_workload_identity ? module.gke.workload_identity_service_account : null
-}
 
 # Monitoring Information
 output "monitoring_enabled" {

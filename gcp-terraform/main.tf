@@ -77,7 +77,6 @@ module "gke" {
   machine_type           = var.machine_type
   disk_size_gb           = var.disk_size_gb
   disk_type              = var.disk_type
-  preemptible_nodes      = var.preemptible_nodes
   spot_nodes             = var.spot_nodes
   
   # Security

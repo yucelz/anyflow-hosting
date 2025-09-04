@@ -189,9 +189,7 @@ resource "google_container_node_pool" "primary_nodes" {
 
   # Node configuration
   node_config {
-    # Use Spot VMs if enabled, otherwise fall back to preemptible nodes for backward compatibility
     spot         = var.spot_nodes
-    preemptible  = var.spot_nodes ? false : var.preemptible_nodes
     machine_type = var.machine_type
     disk_size_gb = var.disk_size_gb
     disk_type    = var.disk_type

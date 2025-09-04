@@ -25,6 +25,7 @@ SERVICES=(
     "compute.googleapis.com"
     "certificatemanager.googleapis.com"
     "iam.googleapis.com"
+    "iamcredentials.googleapis.com" # Required for Workload Identity Federation
 )
 
 PROJECT_ID=$(gcloud config get-value project)

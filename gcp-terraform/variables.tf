@@ -129,12 +129,6 @@ variable "disk_type" {
   }
 }
 
-variable "preemptible_nodes" {
-  description = "Whether to use preemptible nodes (deprecated, use spot_nodes instead)"
-  type        = bool
-  default     = false
-}
-
 variable "spot_nodes" {
   description = "Whether to use Spot VMs (recommended over preemptible nodes)"
   type        = bool

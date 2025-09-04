@@ -478,4 +478,5 @@ For issues specific to the dev deployment:
 4. Verify cluster and pod status
 5. Review application logs
 
+
 Remember: This is a minimal deployment optimized for cost, not performance or high availability.

@@ -357,7 +357,7 @@ If you need to scale beyond dev limits:
    ```bash
    # Disable deletion protection
    gcloud container clusters update dev-n8n-cluster \
-     --zone=us-central1-b \
+     --zone=us-central1-a \
      --project=anyflow-cloud \
      --no-deletion-protection
    

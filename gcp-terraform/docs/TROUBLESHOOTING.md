@@ -70,7 +70,7 @@ If the provider fix doesn't work immediately, manually get credentials:
 
 ```bash
 # For zonal clusters (dev environment)
-gcloud container clusters get-credentials dev-n8n-cluster --zone=us-central1-b --project=anyflow-cloud
+gcloud container clusters get-credentials dev-n8n-cluster --zone=us-central1-a --project=anyflow-cloud
 
 # For regional clusters
 gcloud container clusters get-credentials cluster-name --region=us-central1 --project=your-project-id
@@ -94,7 +94,7 @@ Check if your cluster is zonal or regional:
 gcloud container clusters list --project=anyflow-cloud
 
 # Describe specific cluster
-gcloud container clusters describe dev-n8n-cluster --zone=us-central1-b --project=anyflow-cloud
+gcloud container clusters describe dev-n8n-cluster --zone=us-central1-a --project=anyflow-cloud
 ```
 
 ## Kubernetes Provider Timeout Issues

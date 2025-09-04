@@ -59,7 +59,7 @@ NC='\033[0m' # No Color
 ENVIRONMENT="dev"
 PROJECT_ID="anyflow-cloud"
 REGION="us-central1"
-ZONE="us-central1-b"
+ZONE="us-central1-a"
 CLUSTER_NAME="${ENVIRONMENT}-n8n-cluster"
 # Network names match terraform naming convention: ${environment}-${cluster_name}-${network_name}
 NETWORK_NAME="${ENVIRONMENT}-n8n-cluster-n8n-vpc"

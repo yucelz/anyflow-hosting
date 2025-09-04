@@ -19,7 +19,7 @@ NC='\033[0m' # No Color
 # Configuration based on environment
 PROJECT_ID="anyflow-cloud"
 REGION="us-central1"
-ZONE="us-central1-b"
+ZONE="us-central1-a"
 CLUSTER_NAME="${ENVIRONMENT}-n8n-cluster"
 
 # Function to print status

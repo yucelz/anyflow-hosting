@@ -37,6 +37,7 @@ resource "google_project_service" "required_apis" {
   disable_on_destroy         = false
 }
 
+
 # Network Module
 module "network" {
   source = "./modules/network"
@@ -81,9 +82,9 @@ module "gke" {
   
   # Security
   enable_network_policy      = var.enable_network_policy
-  enable_workload_identity   = var.enable_workload_identity
-  workload_identity_namespace = var.n8n_namespace
-  workload_identity_ksa_name = "n8n-ksa"
+  enable_workload_identity   = false # Disabled as per user request
+  # workload_identity_namespace = var.n8n_namespace # Not needed if Workload Identity is disabled
+  # workload_identity_ksa_name = "n8n-ksa" # Not needed if Workload Identity is disabled
   authorized_networks        = var.authorized_networks
   
   # Deletion protection
@@ -91,7 +92,10 @@ module "gke" {
   
   labels = local.common_labels
 
-  depends_on = [module.network]
+  depends_on = [
+    module.network,
+    # google_iam_workload_identity_pool_provider.main # Removed as Workload Identity is disabled
+  ]
 }
 
 # Time delay to ensure cluster is fully ready

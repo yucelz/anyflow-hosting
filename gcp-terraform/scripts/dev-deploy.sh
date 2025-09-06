@@ -11,6 +11,8 @@ DESTROY_MODE=false
 SHOW_HELP=false
 INFRA_ONLY=false
 APP_ONLY=false
+DB_ONLY=false
+N8N_ONLY=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -28,6 +30,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         --app-only)
             APP_ONLY=true
+            shift
+            ;;
+        --db-only)
+            DB_ONLY=true
+            shift
+            ;;
+        --n8n-only)
+            N8N_ONLY=true
             shift
             ;;
         *)
@@ -57,6 +67,8 @@ if [ "$SHOW_HELP" = true ]; then
     echo "  $0 --destroy          Destroy complete environment"
     echo "  $0 --destroy --app-only    Destroy only application"
     echo "  $0 --destroy --infra-only  Destroy only infrastructure"
+    echo "  $0 --destroy --app-only --db-only    Destroy and redeploy PostgreSQL"
+    echo "  $0 --destroy --app-only --n8n-only   Destroy and redeploy N8N"
     echo ""
     echo "Individual Scripts:"
     echo "  ./dev-infra.sh        Infrastructure deployment script"
@@ -123,9 +135,37 @@ if [ "$DESTROY_MODE" = true ]; then
         "$SCRIPT_DIR/dev-infra.sh" --destroy
         
     elif [ "$APP_ONLY" = true ]; then
-        print_section "APPLICATION DESTRUCTION ONLY"
-        print_status "Destroying application using dev-app.sh..."
-        "$SCRIPT_DIR/dev-app.sh" --destroy
+        if [ "$DB_ONLY" = true ]; then
+            print_section "DATABASE DESTRUCTION AND REDEPLOYMENT"
+            read -p "Are you sure you want to destroy and redeploy the PostgreSQL database? [y/N] " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                print_status "Destroying PostgreSQL database..."
+                "$SCRIPT_DIR/dev-app.sh" --destroy --db-only
+                print_status "Redeploying PostgreSQL database..."
+                "$SCRIPT_DIR/dev-app.sh" --db-only
+                print_success "PostgreSQL database has been redeployed."
+            else
+                print_warning "Operation cancelled."
+            fi
+        elif [ "$N8N_ONLY" = true ]; then
+            print_section "N8N DESTRUCTION AND REDEPLOYMENT"
+            read -p "Are you sure you want to destroy and redeploy N8N? [y/N] " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                print_status "Destroying N8N..."
+                "$SCRIPT_DIR/dev-app.sh" --destroy --n8n-only
+                print_status "Redeploying N8N..."
+                "$SCRIPT_DIR/dev-app.sh" --n8n-only
+                print_success "N8N has been redeployed."
+            else
+                print_warning "Operation cancelled."
+            fi
+        else
+            print_section "APPLICATION DESTRUCTION ONLY"
+            print_status "Destroying application using dev-app.sh..."
+            "$SCRIPT_DIR/dev-app.sh" --destroy
+        fi
         
     else
         print_section "COMPLETE ENVIRONMENT DESTRUCTION"

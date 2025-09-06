@@ -157,6 +157,8 @@ module "n8n" {
   postgres_password          = random_password.postgres_password.result
   postgres_non_root_user     = var.postgres_non_root_user
   postgres_non_root_password = var.postgres_non_root_password
+  postgres_root_user         = var.postgres_root_user
+  postgres_root_password     = var.postgres_root_password
   postgres_storage_size      = var.postgres_storage_size
   postgres_storage_class     = var.postgres_storage_class
   

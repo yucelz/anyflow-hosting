@@ -43,29 +43,7 @@ resource "kubernetes_secret" "n8n_secrets" {
   }
 }
 
-# Create secrets for PostgreSQL configuration
-resource "kubernetes_secret" "postgres_secret" {
-  metadata {
-    name      = "postgres-secret"
-    namespace = kubernetes_namespace.n8n.metadata[0].name
-    labels = merge(var.labels, {
-      app       = "n8n"
-      component = "database-secrets"
-    })
-  }
-
-  type = "Opaque"
-
-  data = {
-    POSTGRES_USER             = base64encode(var.postgres_user)
-    POSTGRES_PASSWORD         = base64encode(var.postgres_password)
-    POSTGRES_DB               = base64encode("n8n")
-    POSTGRES_NON_ROOT_USER    = base64encode(var.postgres_non_root_user)
-    POSTGRES_NON_ROOT_PASSWORD = base64encode(var.postgres_non_root_password)
-  }
-}
-
-# PostgreSQL ConfigMap for init script
+# PostgreSQL ConfigMap for init script - FIXED VERSION
 resource "kubernetes_config_map" "postgres_init_data" {
   metadata {
     name      = "init-data"
@@ -79,15 +57,57 @@ resource "kubernetes_config_map" "postgres_init_data" {
   data = {
     "init-data.sh" = <<-EOT
       #!/bin/bash
-      set -e;
+      set -e
+
+      # Wait for PostgreSQL to be ready
+      until pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"; do
+        echo "Waiting for PostgreSQL to be ready..."
+        sleep 2
+      done
+
+      echo "PostgreSQL is ready. Creating users..."
+
+      # Create non-root user for N8N if it doesn't exist
       if [ -n "$${POSTGRES_NON_ROOT_USER:-}" ] && [ -n "$${POSTGRES_NON_ROOT_PASSWORD:-}" ]; then
-        psql -v ON_ERROR_STOP=1 --username "$${POSTGRES_USER}" --dbname "$${POSTGRES_DB}" <<-EOSQL
-          CREATE USER "$${POSTGRES_NON_ROOT_USER}" WITH PASSWORD '$${POSTGRES_NON_ROOT_PASSWORD}';
-          GRANT ALL PRIVILEGES ON DATABASE $${POSTGRES_DB} TO "$${POSTGRES_NON_ROOT_USER}";
-        EOSQL
-      else
-        echo "SETUP INFO: No Environment variables given!"
+        echo "Creating non-root user: $POSTGRES_NON_ROOT_USER"
+        psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+          DO \$\$
+          BEGIN
+            IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '$POSTGRES_NON_ROOT_USER') THEN
+              CREATE USER "$POSTGRES_NON_ROOT_USER" WITH PASSWORD '$POSTGRES_NON_ROOT_PASSWORD';
+              GRANT ALL PRIVILEGES ON DATABASE "$POSTGRES_DB" TO "$POSTGRES_NON_ROOT_USER";
+              GRANT ALL PRIVILEGES ON SCHEMA public TO "$POSTGRES_NON_ROOT_USER";
+              GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "$POSTGRES_NON_ROOT_USER";
+              GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO "$POSTGRES_NON_ROOT_USER";
+              ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO "$POSTGRES_NON_ROOT_USER";
+              ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO "$POSTGRES_NON_ROOT_USER";
+              RAISE NOTICE 'User % created successfully', '$POSTGRES_NON_ROOT_USER';
+            ELSE
+              RAISE NOTICE 'User % already exists', '$POSTGRES_NON_ROOT_USER';
+            END IF;
+          END
+          \$\$;
+EOSQL
       fi
+
+      # Create root user if specified and different from main user
+      if [ -n "$${POSTGRES_ROOT_USER:-}" ] && [ -n "$${POSTGRES_ROOT_PASSWORD:-}" ] && [ "$POSTGRES_ROOT_USER" != "$POSTGRES_USER" ]; then
+        echo "Creating root user: $POSTGRES_ROOT_USER"
+        psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+          DO \$\$
+          BEGIN
+            IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '$POSTGRES_ROOT_USER') THEN
+              CREATE USER "$POSTGRES_ROOT_USER" WITH SUPERUSER PASSWORD '$POSTGRES_ROOT_PASSWORD';
+              RAISE NOTICE 'Root user % created successfully', '$POSTGRES_ROOT_USER';
+            ELSE
+              RAISE NOTICE 'Root user % already exists', '$POSTGRES_ROOT_USER';
+            END IF;
+          END
+          \$\$;
+EOSQL
+      fi
+
+      echo "User creation completed successfully."
     EOT
   }
 }
@@ -122,7 +142,7 @@ resource "kubernetes_persistent_volume_claim" "n8n_claim0" {
   depends_on = [kubernetes_namespace.n8n]
 }
 
-# PostgreSQL StatefulSet
+# PostgreSQL StatefulSet - FIXED VERSION
 resource "kubernetes_stateful_set" "postgres" {
   metadata {
     name      = "postgres" # Renamed to postgres as per reference
@@ -168,13 +188,8 @@ resource "kubernetes_stateful_set" "postgres" {
           }
 
           env {
-            name = "POSTGRES_USER"
-            value_from {
-              secret_key_ref {
-                name = kubernetes_secret.postgres_secret.metadata[0].name
-                key  = "POSTGRES_USER"
-              }
-            }
+            name  = "POSTGRES_USER"
+            value = var.postgres_user
           }
 
           env {
@@ -183,33 +198,28 @@ resource "kubernetes_stateful_set" "postgres" {
           }
 
           env {
-            name = "POSTGRES_PASSWORD"
-            value_from {
-              secret_key_ref {
-                name = kubernetes_secret.postgres_secret.metadata[0].name
-                key  = "POSTGRES_PASSWORD"
-              }
-            }
+            name  = "POSTGRES_PASSWORD"
+            value = var.postgres_password
           }
 
           env {
-            name = "POSTGRES_NON_ROOT_USER"
-            value_from {
-              secret_key_ref {
-                name = kubernetes_secret.postgres_secret.metadata[0].name
-                key  = "POSTGRES_NON_ROOT_USER"
-              }
-            }
+            name  = "POSTGRES_NON_ROOT_USER"
+            value = var.postgres_non_root_user
           }
 
           env {
-            name = "POSTGRES_NON_ROOT_PASSWORD"
-            value_from {
-              secret_key_ref {
-                name = kubernetes_secret.postgres_secret.metadata[0].name
-                key  = "POSTGRES_NON_ROOT_PASSWORD"
-              }
-            }
+            name  = "POSTGRES_NON_ROOT_PASSWORD"
+            value = var.postgres_non_root_password
+          }
+
+          env {
+            name  = "POSTGRES_ROOT_USER"
+            value = var.postgres_root_user
+          }
+
+          env {
+            name  = "POSTGRES_ROOT_PASSWORD"
+            value = var.postgres_root_password
           }
 
           env {
@@ -244,46 +254,49 @@ resource "kubernetes_stateful_set" "postgres" {
             }
           }
 
-          # Liveness probe
+          # Updated health checks to use the main postgres user initially - FIXED
           liveness_probe {
             exec {
-              command = ["pg_isready", "-U", var.postgres_non_root_user, "-d", "n8n"] # Updated user
+              command = ["pg_isready", "-U", var.postgres_user, "-d", "n8n"]
             }
-            initial_delay_seconds = 30
-            period_seconds        = 10
-            timeout_seconds       = 5
+            initial_delay_seconds = 60  # Increased to allow init script to complete
+            period_seconds        = 30
+            timeout_seconds       = 10
             failure_threshold     = 3
           }
 
-          # Readiness probe
           readiness_probe {
             exec {
-              command = ["pg_isready", "-U", var.postgres_non_root_user, "-d", "n8n"] # Updated user
+              command = ["pg_isready", "-U", var.postgres_user, "-d", "n8n"]
             }
-            initial_delay_seconds = 15
-            period_seconds        = 5
-            timeout_seconds       = 3
-            failure_threshold     = 3
+            initial_delay_seconds = 30  # Increased to allow init script to complete
+            period_seconds        = 10
+            timeout_seconds       = 5
+            failure_threshold     = 5
+          }
+
+          # Add startup probe to give more time for initialization - FIXED
+          startup_probe {
+            exec {
+              command = ["pg_isready", "-U", var.postgres_user, "-d", "n8n"]
+            }
+            initial_delay_seconds = 10
+            period_seconds        = 10
+            timeout_seconds       = 5
+            failure_threshold     = 18  # 3 minutes total
           }
         }
 
         # Security context
         security_context {
-          fs_group = 999
-        }
-
-        volume {
-          name = "postgres-secret"
-          secret {
-            secret_name = kubernetes_secret.postgres_secret.metadata[0].name
-          }
+          fs_group = 1000
         }
 
         volume {
           name = "init-data"
           config_map {
-            name        = kubernetes_config_map.postgres_init_data.metadata[0].name
-            default_mode = "0744"
+            name         = kubernetes_config_map.postgres_init_data.metadata[0].name
+            default_mode = "0755"  # Make sure script is executable - FIXED
           }
         }
       }
@@ -306,9 +319,8 @@ resource "kubernetes_stateful_set" "postgres" {
     }
   }
 
-  depends_on = [kubernetes_secret.postgres_secret, kubernetes_config_map.postgres_init_data]
+  depends_on = [kubernetes_config_map.postgres_init_data]
 }
-
 
 # PostgreSQL Service
 resource "kubernetes_service" "postgres" {
@@ -337,7 +349,7 @@ resource "kubernetes_service" "postgres" {
   }
 }
 
-# N8N Deployment
+# N8N Deployment - FIXED VERSION
 resource "kubernetes_deployment" "n8n" {
   metadata {
     name      = "n8n-deployment"
@@ -372,14 +384,44 @@ resource "kubernetes_deployment" "n8n" {
       }
 
       spec {
-        init_container { # Added initContainer
+        # FIXED: Updated init container with proper security context
+        init_container {
           name  = "volume-permissions"
           image = "busybox:1.36"
-          command = ["sh", "-c", "chown 1000:1000 /home/node/.n8n"] # Updated path
+          command = ["sh", "-c", "mkdir -p /home/node/.n8n && chown -R 1000:1000 /home/node/.n8n && chmod -R 755 /home/node/.n8n"]
+          
+          # Add security context that allows the chown operation
+          security_context {
+            run_as_user  = 0  # Run as root to perform chown
+            run_as_group = 0
+            capabilities {
+              add = ["CHOWN", "FOWNER"]
+            }
+          }
+          
           volume_mount {
             name       = "n8n-claim0"
             mount_path = "/home/node/.n8n"
           }
+        }
+
+        # Add init container to wait for database - NEW
+        init_container {
+          name  = "wait-for-db"
+          image = "postgres:${var.postgres_image_tag}"
+          command = [
+            "sh", "-c",
+            <<-EOT
+            until pg_isready -h postgres-service.${kubernetes_namespace.n8n.metadata[0].name}.svc.cluster.local -U ${var.postgres_non_root_user} -d n8n; do 
+              echo "Waiting for database..."; 
+              sleep 5; 
+            done;
+            echo "Database is ready!"
+            # Test actual connection
+            PGPASSWORD=${var.postgres_non_root_password} psql -h postgres-service.${kubernetes_namespace.n8n.metadata[0].name}.svc.cluster.local -U ${var.postgres_non_root_user} -d n8n -c "SELECT 1;" || exit 1
+            echo "Database connection test successful!"
+            EOT
+          ]
         }
 
         container {
@@ -387,7 +429,7 @@ resource "kubernetes_deployment" "n8n" {
           image             = "n8nio/n8n:${var.n8n_image_tag}"
           image_pull_policy = "IfNotPresent"
           command           = ["/bin/sh"] # Added command
-          args              = ["-c", "sleep 5; n8n start"] # Added args
+          args              = ["-c", "sleep 10; n8n start"] # Additional delay - FIXED
 
           port {
             name           = "http"
@@ -400,7 +442,7 @@ resource "kubernetes_deployment" "n8n" {
           }
           env {
             name = "DB_POSTGRESDB_HOST"
-            value = "postgres-service.n8n.svc.cluster.local" # Updated FQDN
+            value = "postgres-service.${kubernetes_namespace.n8n.metadata[0].name}.svc.cluster.local" # Updated FQDN
           }
           env {
             name = "DB_POSTGRESDB_PORT"
@@ -411,22 +453,12 @@ resource "kubernetes_deployment" "n8n" {
             value = "n8n"
           }
           env {
-            name = "DB_POSTGRESDB_USER"
-            value_from {
-              secret_key_ref {
-                name = kubernetes_secret.postgres_secret.metadata[0].name
-                key  = "POSTGRES_NON_ROOT_USER" # Updated key
-              }
-            }
+            name  = "DB_POSTGRESDB_USER"
+            value = var.postgres_non_root_user
           }
           env {
-            name = "DB_POSTGRESDB_PASSWORD"
-            value_from {
-              secret_key_ref {
-                name = kubernetes_secret.postgres_secret.metadata[0].name
-                key  = "POSTGRES_NON_ROOT_PASSWORD" # Updated key
-              }
-            }
+            name  = "DB_POSTGRESDB_PASSWORD"
+            value = var.postgres_non_root_password
           }
           env {
             name = "N8N_PROTOCOL"
@@ -438,13 +470,13 @@ resource "kubernetes_deployment" "n8n" {
             }
           }
 
-          # Health checks - more lenient for development
+          # Health checks - more lenient for development - IMPROVED TIMING
           liveness_probe {
             http_get {
               path = "/healthz"
               port = 5678
             }
-            initial_delay_seconds = 120
+            initial_delay_seconds = 180  # 3 minutes - INCREASED
             period_seconds        = 30
             timeout_seconds       = 10
             failure_threshold     = 5
@@ -455,13 +487,13 @@ resource "kubernetes_deployment" "n8n" {
               path = "/healthz"
               port = 5678
             }
-            initial_delay_seconds = 60
-            period_seconds        = 10
+            initial_delay_seconds = 120  # 2 minutes - INCREASED
+            period_seconds        = 15
             timeout_seconds       = 5
             failure_threshold     = 5
           }
 
-          # Startup probe - more generous timing
+          # Startup probe - more generous timing - IMPROVED
           startup_probe {
             http_get {
               path = "/healthz"
@@ -470,7 +502,7 @@ resource "kubernetes_deployment" "n8n" {
             initial_delay_seconds = 60
             period_seconds        = 15
             timeout_seconds       = 10
-            failure_threshold     = 40
+            failure_threshold     = 60  # 15 minutes total - INCREASED
           }
 
           resources {
@@ -587,18 +619,20 @@ resource "google_compute_global_address" "n8n_ip" {
   name = var.static_ip_name
 }
 
-# Create SSL certificate (if enabled)
-resource "google_compute_managed_ssl_certificate" "n8n_ssl_cert" {
+# Create ManagedCertificate for the ingress
+resource "kubernetes_manifest" "n8n_ssl_cert" {
   count = var.enable_ssl ? 1 : 0
 
-  name = var.ssl_certificate_name
-
-  managed {
-    domains = [var.domain_name]
-  }
-
-  lifecycle {
-    create_before_destroy = true
+  manifest = {
+    apiVersion = "networking.gke.io/v1"
+    kind       = "ManagedCertificate"
+    metadata = {
+      name      = var.ssl_certificate_name
+      namespace = kubernetes_namespace.n8n.metadata[0].name
+    }
+    spec = {
+      domains = [var.domain_name]
+    }
   }
 }
 
@@ -650,7 +684,7 @@ resource "kubernetes_ingress_v1" "n8n_ingress" {
         })
       },
       var.enable_ssl ? {
-        "networking.gke.io/managed-certificates" = google_compute_managed_ssl_certificate.n8n_ssl_cert[0].name
+        "networking.gke.io/managed-certificates" = var.ssl_certificate_name
       } : {}
     )
   }

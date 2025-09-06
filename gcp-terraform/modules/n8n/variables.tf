@@ -47,7 +47,7 @@ variable "postgres_image_tag" {
 variable "postgres_user" {
   description = "PostgreSQL root user"
   type        = string
-  default     = "n8n"
+  default     = "postgres"
 }
 
 variable "postgres_password" {
@@ -59,11 +59,22 @@ variable "postgres_password" {
 variable "postgres_non_root_user" {
   description = "PostgreSQL non-root user for n8n"
   type        = string
-  default     = "n8n"
+  default     = "n8n_user"
 }
 
 variable "postgres_non_root_password" {
   description = "PostgreSQL non-root password for n8n"
+  type        = string
+  sensitive   = true
+}
+
+variable "postgres_root_user" {
+  description = "PostgreSQL root user"
+  type        = string
+}
+
+variable "postgres_root_password" {
+  description = "PostgreSQL root password"
   type        = string
   sensitive   = true
 }

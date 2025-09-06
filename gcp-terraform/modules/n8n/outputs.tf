@@ -25,7 +25,7 @@ output "ingress_ip" {
 
 output "ssl_certificate_name" {
   description = "Name of the SSL certificate"
-  value       = var.enable_ssl ? google_compute_managed_ssl_certificate.n8n_ssl_cert[0].name : null
+  value       = var.enable_ssl ? kubernetes_manifest.n8n_ssl_cert[0].manifest.metadata.name : null
 }
 
 # output "ssl_certificate_status" {

@@ -9,6 +9,8 @@ set -e
 # Parse command line arguments
 DESTROY_MODE=false
 SHOW_HELP=false
+DB_ONLY=false
+N8N_ONLY=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -18,6 +20,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         --help|-h)
             SHOW_HELP=true
+            shift
+            ;;
+        --db-only)
+            DB_ONLY=true
+            shift
+            ;;
+        --n8n-only)
+            N8N_ONLY=true
             shift
             ;;
         *)
@@ -379,47 +389,67 @@ fi
 
 # Handle destroy mode
 if [ "$DESTROY_MODE" = true ]; then
-    print_section "APPLICATION DESTRUCTION"
-    
-    # Ask for confirmation
-    echo -e "${RED}WARNING: This will destroy the N8N application and all data!${NC}"
-    echo -e "${RED}This includes:${NC}"
-    echo -e "${RED}  • N8N application and workflows${NC}"
-    echo -e "${RED}  • PostgreSQL database and all data${NC}"
-    echo -e "${RED}  • SSL certificates and static IPs${NC}"
-    echo -e "${RED}  • Ingress and load balancer${NC}"
-    echo ""
-    echo -e "${YELLOW}Note: Infrastructure (GKE cluster and network) will remain deployed${NC}"
-    echo ""
-    read -p "Are you sure you want to destroy the N8N application? (y/N): " -n 1 -r
-    echo ""
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        print_warning "Application destruction cancelled by user"
+    if [ "$DB_ONLY" = true ]; then
+        print_section "DATABASE-ONLY DESTRUCTION"
+        terraform destroy -target="module.n8n.kubernetes_secret.postgres_secret" \
+            -target="module.n8n.kubernetes_config_map.postgres_init_data" \
+            -target="module.n8n.kubernetes_stateful_set.postgres" \
+            -target="module.n8n.kubernetes_service.postgres" \
+            -var-file="environments/$ENVIRONMENT/terraform.tfvars" -auto-approve
+    elif [ "$N8N_ONLY" = true ]; then
+        print_section "N8N-ONLY DESTRUCTION"
+        terraform destroy -target="module.n8n.kubernetes_secret.n8n_secrets" \
+            -target="module.n8n.kubernetes_persistent_volume_claim.n8n_claim0" \
+            -target="module.n8n.kubernetes_deployment.n8n" \
+            -target="module.n8n.kubernetes_service.n8n" \
+            -target="module.n8n.google_compute_global_address.n8n_ip" \
+            -target="module.n8n.google_compute_managed_ssl_certificate.n8n_ssl_cert" \
+            -target="module.n8n.kubernetes_manifest.backend_config" \
+            -target="module.n8n.kubernetes_ingress_v1.n8n_ingress" \
+            -var-file="environments/$ENVIRONMENT/terraform.tfvars" -auto-approve
+    else
+        print_section "APPLICATION DESTRUCTION"
+        
+        # Ask for confirmation
+        echo -e "${RED}WARNING: This will destroy the N8N application and all data!${NC}"
+        echo -e "${RED}This includes:${NC}"
+        echo -e "${RED}  • N8N application and workflows${NC}"
+        echo -e "${RED}  • PostgreSQL database and all data${NC}"
+        echo -e "${RED}  • SSL certificates and static IPs${NC}"
+        echo -e "${RED}  • Ingress and load balancer${NC}"
+        echo ""
+        echo -e "${YELLOW}Note: Infrastructure (GKE cluster and network) will remain deployed${NC}"
+        echo ""
+        read -p "Are you sure you want to destroy the N8N application? (y/N): " -n 1 -r
+        echo ""
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            print_warning "Application destruction cancelled by user"
+            exit 0
+        fi
+        
+        # Destroy N8N application
+        print_section "DESTROYING N8N APPLICATION"
+        print_status "Destroying N8N application and database..."
+        
+        if terraform destroy -target="module.n8n" \
+            -var-file="environments/$ENVIRONMENT/terraform.tfvars" \
+            -auto-approve; then
+            print_success "N8N application destroyed successfully"
+        else
+            print_error "N8N application destruction failed"
+            print_error "You may need to manually clean up Kubernetes resources:"
+            print_error "kubectl delete namespace n8n --force --grace-period=0"
+            exit 1
+        fi
+        
+        print_section "APPLICATION DESTRUCTION COMPLETE"
+        print_success "N8N application has been destroyed!"
+        print_status "Infrastructure remains available for redeployment"
+        print_status "To redeploy: ./dev-app.sh"
+        print_status "To destroy infrastructure: ./dev-infra.sh --destroy"
+        
         exit 0
     fi
-    
-    # Destroy N8N application
-    print_section "DESTROYING N8N APPLICATION"
-    print_status "Destroying N8N application and database..."
-    
-    if terraform destroy -target="module.n8n" \
-        -var-file="environments/$ENVIRONMENT/terraform.tfvars" \
-        -auto-approve; then
-        print_success "N8N application destroyed successfully"
-    else
-        print_error "N8N application destruction failed"
-        print_error "You may need to manually clean up Kubernetes resources:"
-        print_error "kubectl delete namespace n8n --force --grace-period=0"
-        exit 1
-    fi
-    
-    print_section "APPLICATION DESTRUCTION COMPLETE"
-    print_success "N8N application has been destroyed!"
-    print_status "Infrastructure remains available for redeployment"
-    print_status "To redeploy: ./dev-app.sh"
-    print_status "To destroy infrastructure: ./dev-infra.sh --destroy"
-    
-    exit 0
 fi
 
 # Deploy Application (N8N)
@@ -427,10 +457,30 @@ print_section "APPLICATION DEPLOYMENT"
 print_status "Planning N8N application deployment..."
 
 # Plan N8N application
-terraform plan \
-    -var-file="environments/$ENVIRONMENT/terraform.tfvars" \
-    -target="module.n8n" \
-    -out="terraform-$ENVIRONMENT-app.tfplan"
+if [ "$DB_ONLY" = true ]; then
+    terraform plan -target="module.n8n.kubernetes_secret.postgres_secret" \
+        -target="module.n8n.kubernetes_config_map.postgres_init_data" \
+        -target="module.n8n.kubernetes_stateful_set.postgres" \
+        -target="module.n8n.kubernetes_service.postgres" \
+        -var-file="environments/$ENVIRONMENT/terraform.tfvars" \
+        -out="terraform-$ENVIRONMENT-app.tfplan"
+elif [ "$N8N_ONLY" = true ]; then
+    terraform plan -target="module.n8n.kubernetes_secret.n8n_secrets" \
+        -target="module.n8n.kubernetes_persistent_volume_claim.n8n_claim0" \
+        -target="module.n8n.kubernetes_deployment.n8n" \
+        -target="module.n8n.kubernetes_service.n8n" \
+        -target="module.n8n.google_compute_global_address.n8n_ip" \
+        -target="module.n8n.google_compute_managed_ssl_certificate.n8n_ssl_cert" \
+        -target="module.n8n.kubernetes_manifest.backend_config" \
+        -target="module.n8n.kubernetes_ingress_v1.n8n_ingress" \
+        -var-file="environments/$ENVIRONMENT/terraform.tfvars" \
+        -out="terraform-$ENVIRONMENT-app.tfplan"
+else
+    terraform plan \
+        -var-file="environments/$ENVIRONMENT/terraform.tfvars" \
+        -target="module.n8n" \
+        -out="terraform-$ENVIRONMENT-app.tfplan"
+fi
 
 # Show application summary
 print_status "Application Deployment Summary:"

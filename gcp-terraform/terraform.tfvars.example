@@ -89,6 +89,10 @@ postgres_cpu_request    = "250m"            # CPU request
 postgres_memory_request = "256Mi"           # Memory request
 postgres_cpu_limit      = "500m"            # CPU limit  
 postgres_memory_limit   = "512Mi"           # Memory limit
+postgres_non_root_user     = "n8n_user"
+postgres_non_root_password = "replace_with_your_password"
+postgres_root_user         = "admin_user"
+postgres_root_password     = "replace_with_your_password"
 
 # =============================================================================
 # SSL AND NETWORKING

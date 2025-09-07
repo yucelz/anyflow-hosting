@@ -257,6 +257,33 @@ else
         echo -e "${YELLOW}Individual Management:${NC}"
         echo -e "${YELLOW}  • Infrastructure: ./scripts/dev-infra.sh [--destroy]${NC}"
         echo -e "${YELLOW}  • Application: ./scripts/dev-app.sh [--destroy]${NC}"
+
+        # Wait for SSL certificate to be ready if SSL is enabled
+        ENABLE_SSL=$(grep -E '^\s*enable_ssl\s*=' "$(dirname "$0")/../environments/dev/terraform.tfvars" | awk -F'=' '{print $2}' | tr -d '[:space:]')
+        if [ "$ENABLE_SSL" = "true" ]; then
+            print_section "WAITING FOR SSL CERTIFICATE"
+            CERT_NAME=$(terraform -chdir="$(dirname "$0")/../" output -raw ssl_certificate_name)
+            if [ -n "$CERT_NAME" ]; then
+                print_status "Waiting for SSL certificate '$CERT_NAME' to be provisioned..."
+                end_time=$((SECONDS + 900)) # 15 minute timeout
+                while [ $SECONDS -lt $end_time ]; do
+                    status=$(kubectl get managedcertificate -n n8n "$CERT_NAME" -o jsonpath='{.status.domainStatus[0].status}' 2>/dev/null || echo "Unknown")
+                    if [ "$status" = "Active" ]; then
+                        print_success "SSL certificate is active!"
+                        break
+                    fi
+                    print_status "Certificate status: $status. Waiting..."
+                    sleep 30
+                done
+                if [ "$status" != "Active" ]; then
+                    print_warning "Timed out waiting for SSL certificate to become active. Please check its status manually."
+                fi
+            else
+                print_warning "SSL certificate name not found. Skipping wait."
+            fi
+        else
+            print_status "SSL is disabled, skipping certificate check."
+        fi
     fi
 fi
 

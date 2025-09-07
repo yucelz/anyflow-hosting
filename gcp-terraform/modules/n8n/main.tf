@@ -596,7 +596,7 @@ resource "kubernetes_service" "n8n" {
   }
 
   spec {
-    type = "ClusterIP"
+    type = var.n8n_service_type
 
     selector = {
       app       = "n8n"

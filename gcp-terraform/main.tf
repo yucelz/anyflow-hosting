@@ -154,6 +154,7 @@ module "n8n" {
   
   # Database configuration
   postgres_image_tag         = var.postgres_image_tag
+  postgres_user              = var.postgres_user
   postgres_password          = random_password.postgres_password.result
   postgres_non_root_user     = var.postgres_non_root_user
   postgres_non_root_password = var.postgres_non_root_password
@@ -186,6 +187,7 @@ module "n8n" {
   enable_monitoring     = var.enable_monitoring
   enable_n8n_metrics    = var.enable_n8n_metrics
   timezone              = var.timezone
+  n8n_service_type      = var.n8n_service_type
   
   labels = local.common_labels
 

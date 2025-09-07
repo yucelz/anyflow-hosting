@@ -1,237 +1,237 @@
+# N8N Module Variables
+
 variable "namespace" {
-  description = "Kubernetes namespace for n8n"
+  description = "The Kubernetes namespace for N8N."
   type        = string
   default     = "n8n"
 }
 
-variable "domain_name" {
-  description = "Domain name for n8n"
-  type        = string
-}
-
-variable "n8n_image_tag" {
-  description = "Docker image tag for n8n"
-  type        = string
-  default     = "latest"
-}
-
-variable "n8n_replicas" {
-  description = "Number of n8n replicas"
-  type        = number
-  default     = 1
+variable "labels" {
+  description = "A map of labels to apply to all resources."
+  type        = map(string)
+  default     = {}
 }
 
 variable "n8n_basic_auth_user" {
-  description = "Basic auth username for n8n"
+  description = "The basic authentication username for N8N."
   type        = string
 }
 
 variable "n8n_basic_auth_password" {
-  description = "Basic auth password for n8n"
+  description = "The basic authentication password for N8N."
   type        = string
   sensitive   = true
+}
+
+variable "domain_name" {
+  description = "The domain name for N8N."
+  type        = string
 }
 
 variable "n8n_encryption_key" {
-  description = "Encryption key for n8n"
+  description = "The encryption key for N8N."
   type        = string
   sensitive   = true
 }
 
+variable "timezone" {
+  description = "The timezone for N8N."
+  type        = string
+  default     = "UTC"
+}
+
+variable "enable_n8n_metrics" {
+  description = "Enable Prometheus metrics for N8N."
+  type        = bool
+  default     = false
+}
+
+variable "n8n_storage_size" {
+  description = "The storage size for the N8N persistent volume."
+  type        = string
+  default     = "10Gi"
+}
+
+variable "n8n_storage_class" {
+  description = "The storage class for the N8N persistent volume."
+  type        = string
+  default     = "standard"
+}
+
 variable "postgres_image_tag" {
-  description = "PostgreSQL Docker image tag"
+  description = "The image tag for the PostgreSQL container."
   type        = string
   default     = "13"
 }
 
 variable "postgres_user" {
-  description = "PostgreSQL root user"
+  description = "The main user for PostgreSQL."
   type        = string
-  default     = "postgres"
 }
 
 variable "postgres_password" {
-  description = "PostgreSQL root password"
+  description = "The password for the main PostgreSQL user."
   type        = string
   sensitive   = true
 }
 
 variable "postgres_non_root_user" {
-  description = "PostgreSQL non-root user for n8n"
+  description = "The non-root user for PostgreSQL."
   type        = string
-  default     = "n8n_user"
 }
 
 variable "postgres_non_root_password" {
-  description = "PostgreSQL non-root password for n8n"
+  description = "The password for the non-root PostgreSQL user."
   type        = string
   sensitive   = true
 }
 
 variable "postgres_root_user" {
-  description = "PostgreSQL root user"
+  description = "The root user for PostgreSQL."
   type        = string
+  default     = ""
 }
 
 variable "postgres_root_password" {
-  description = "PostgreSQL root password"
+  description = "The password for the root PostgreSQL user."
   type        = string
   sensitive   = true
-}
-
-variable "postgres_storage_size" {
-  description = "PostgreSQL storage size"
-  type        = string
-  default     = "300Gi" # Updated default as per reference
-}
-
-variable "postgres_storage_class" {
-  description = "Storage class for PostgreSQL"
-  type        = string
-  default     = "standard-rwo"
-}
-
-variable "n8n_storage_size" { # New variable for N8N storage
-  description = "N8N persistent volume storage size"
-  type        = string
-  default     = "2Gi" # As per reference
-}
-
-variable "n8n_storage_class" { # New variable for N8N storage class
-  description = "Storage class for N8N persistent volume"
-  type        = string
-  default     = "standard-rwo"
-}
-
-# Resource configuration
-variable "n8n_cpu_request" {
-  description = "CPU request for n8n pods"
-  type        = string
-  default     = "250m" # Updated default as per reference
-}
-
-variable "n8n_memory_request" {
-  description = "Memory request for n8n pods"
-  type        = string
-  default     = "250Mi" # Updated default as per reference
-}
-
-variable "n8n_cpu_limit" {
-  description = "CPU limit for n8n pods"
-  type        = string
-  default     = "500m" # Updated default as per reference
-}
-
-variable "n8n_memory_limit" {
-  description = "Memory limit for n8n pods"
-  type        = string
-  default     = "500Mi" # Updated default as per reference
-}
-
-
-variable "postgres_cpu_request" {
-  description = "CPU request for PostgreSQL pods"
-  type        = string
-  default     = "1" # Updated default as per reference
+  default     = ""
 }
 
 variable "postgres_memory_request" {
-  description = "Memory request for PostgreSQL pods"
+  description = "The memory request for the PostgreSQL container."
   type        = string
-  default     = "2Gi" # Updated default as per reference
+  default     = "512Mi"
 }
 
-variable "postgres_cpu_limit" {
-  description = "CPU limit for PostgreSQL pods"
+variable "postgres_cpu_request" {
+  description = "The CPU request for the PostgreSQL container."
   type        = string
-  default     = "4" # Updated default as per reference
+  default     = "250m"
 }
 
 variable "postgres_memory_limit" {
-  description = "Memory limit for PostgreSQL pods"
+  description = "The memory limit for the PostgreSQL container."
   type        = string
-  default     = "4Gi" # Updated default as per reference
+  default     = "1Gi"
 }
 
-# SSL and ingress configuration
-variable "enable_ssl" {
-  description = "Enable SSL certificate for ingress"
-  type        = bool
-  default     = true
-}
-
-variable "ssl_certificate_name" {
-  description = "Name of the SSL certificate"
+variable "postgres_cpu_limit" {
+  description = "The CPU limit for the PostgreSQL container."
   type        = string
-  default     = "n8n-ssl-cert"
+  default     = "500m"
 }
 
-variable "static_ip_name" {
-  description = "Name of the static IP address"
+variable "postgres_storage_size" {
+  description = "The storage size for the PostgreSQL persistent volume."
   type        = string
-  default     = "n8n-static-ip"
+  default     = "10Gi"
 }
 
-# Monitoring configuration
+variable "postgres_storage_class" {
+  description = "The storage class for the PostgreSQL persistent volume."
+  type        = string
+  default     = "standard"
+}
+
+variable "n8n_replicas" {
+  description = "The number of replicas for the N8N deployment."
+  type        = number
+  default     = 1
+}
+
 variable "enable_monitoring" {
-  description = "Enable monitoring annotations"
-  type        = bool
-  default     = true
-}
-
-variable "enable_n8n_metrics" {
-  description = "Enable n8n metrics collection"
-  type        = bool
-  default     = true
-}
-
-# Network policy
-variable "enable_network_policy" {
-  description = "Enable Kubernetes network policies"
+  description = "Enable Prometheus monitoring annotations."
   type        = bool
   default     = false
 }
 
-# Autoscaling configuration
+variable "n8n_image_tag" {
+  description = "The image tag for the N8N container."
+  type        = string
+  default     = "latest"
+}
+
+variable "n8n_cpu_limit" {
+  description = "The CPU limit for the N8N container."
+  type        = string
+  default     = "1"
+}
+
+variable "n8n_memory_limit" {
+  description = "The memory limit for the N8N container."
+  type        = string
+  default     = "2Gi"
+}
+
+variable "n8n_cpu_request" {
+  description = "The CPU request for the N8N container."
+  type        = string
+  default     = "500m"
+}
+
+variable "n8n_memory_request" {
+  description = "The memory request for the N8N container."
+  type        = string
+  default     = "1Gi"
+}
+
+variable "static_ip_name" {
+  description = "The name of the static IP for the ingress."
+  type        = string
+}
+
+variable "enable_ssl" {
+  description = "Enable SSL for the ingress."
+  type        = bool
+  default     = false
+}
+
+variable "ssl_certificate_name" {
+  description = "The name of the SSL certificate for the ingress."
+  type        = string
+  default     = ""
+}
+
+variable "enable_network_policy" {
+  description = "Enable network policy for N8N."
+  type        = bool
+  default     = false
+}
+
 variable "enable_autoscaling" {
-  description = "Enable horizontal pod autoscaling"
+  description = "Enable Horizontal Pod Autoscaler for N8N."
   type        = bool
   default     = false
 }
 
 variable "min_replicas" {
-  description = "Minimum number of replicas for autoscaling"
+  description = "The minimum number of replicas for the HPA."
   type        = number
   default     = 1
 }
 
 variable "max_replicas" {
-  description = "Maximum number of replicas for autoscaling"
+  description = "The maximum number of replicas for the HPA."
   type        = number
-  default     = 5
+  default     = 3
 }
 
 variable "target_cpu_utilization" {
-  description = "Target CPU utilization for autoscaling"
-  type        = number
-  default     = 70
-}
-
-variable "target_memory_utilization" {
-  description = "Target memory utilization for autoscaling"
+  description = "The target CPU utilization for the HPA."
   type        = number
   default     = 80
 }
 
-# Timezone configuration
-variable "timezone" {
-  description = "Timezone for n8n"
-  type        = string
-  default     = "UTC"
+variable "target_memory_utilization" {
+  description = "The target memory utilization for the HPA."
+  type        = number
+  default     = 80
 }
 
-variable "labels" {
-  description = "Labels to apply to resources"
-  type        = map(string)
-  default     = {}
+variable "n8n_service_type" {
+  description = "The type of the N8N Kubernetes service."
+  type        = string
+  default     = "NodePort"
 }

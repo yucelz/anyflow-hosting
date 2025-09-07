@@ -295,6 +295,11 @@ variable "postgres_root_password" {
   sensitive   = true
 }
 
+variable "postgres_user" {
+  description = "PostgreSQL user"
+  type        = string
+}
+
 # SSL and Ingress Configuration
 variable "enable_ssl" {
   description = "Enable SSL certificate for ingress"
@@ -361,4 +366,10 @@ variable "timezone" {
   description = "Timezone for n8n"
   type        = string
   default     = "UTC"
+}
+
+variable "n8n_service_type" {
+  description = "The type of the N8N Kubernetes service."
+  type        = string
+  default     = "NodePort"
 }
